@@ -40,6 +40,13 @@ members). This padding is compiler-inserted, not a named field, and is
 not stated explicitly by the source docs — treat it as derived from
 standard x64 alignment rules, not an official offset table.
 
+:::caution[Pointer lifetime]
+Community bindings document that agent `name` strings are only valid
+**for the duration of the callback** ("this struct is not usable for
+longer than the function call"). Copy any strings you need; never
+store the `ag*` or its `name` pointer.
+:::
+
 ## `ev == null` agent-list events
 
 The README documents an overloaded use of `ag` when the combat callback

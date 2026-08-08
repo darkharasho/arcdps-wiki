@@ -38,10 +38,11 @@ Treat `time` as a timestamp only after ruling those three out. Every
 other field's
 meaning depends on the value of `is_statechange` (which state-change type
 the event is) — the same byte offset carries different data for, say,
-`CBTS_COMBAT` versus `CBTS_POSITION` versus `CBTS_BUFFINFO`. See the
-[enum reference](/reference/enums/) for the full per-event-type field
-mapping (`cbtstatechange`); this page documents the struct's fixed C
-layout and the fields' *generic*/most-common (`CBTS_COMBAT`) roles.
+`CBTS_COMBAT` versus `CBTS_POSITION` versus `CBTS_BUFFINFO`. The full
+per-event-type field mapping is on the
+[statechange payloads](/reference/enums/statechange-payloads/) page;
+this page documents the struct's fixed C layout and the fields'
+*generic*/most-common (`CBTS_COMBAT`) roles.
 
 ## C declaration
 
@@ -231,11 +232,29 @@ const cbtevent = koffi.struct("cbtevent", {
 });
 ```
 
+## Layout corroboration
+
+The offset table above (derived from natural alignment) is confirmed
+by independent implementations: community Rust bindings declare the
+identical `#[repr(C)]` layout, and at least one from-scratch
+reimplementation carries a compile-time test asserting
+`sizeof == 64` and `skillid` at byte offset 36 — matching the derived
+table exactly.
+
+One field nuance recorded by the community bindings (not in the
+official notes): for strike events, `is_flanking` values lie "in a
+range of 1 to 135 degrees where 135 is rear" — i.e. it is an angle
+indicator, not a plain boolean.
+
 ## See also
 
+- [Statechange payloads](/reference/enums/statechange-payloads/) —
+  full per-event mapping of how each state-change type repurposes
+  these fields.
 - [Combat callback](/reference/extension-api/combat-callback/) — how
   `cbtevent*` reaches your extension.
 - [`agent (ag)`](/reference/data-structures/agent/) — the `src`/`dst`
   struct passed alongside `ev`.
-- [Enum reference](/reference/enums/) — full `cbtstatechange` table
-  mapping each state-change type to the fields it repurposes.
+- [Enum reference](/reference/enums/) — the enum value tables.
+- [EVTC log format](/reference/evtc-format/) — the same struct as it
+  appears on disk (revision byte `header[12] == 1`).

@@ -1,6 +1,6 @@
 ---
 title: Enum reference
-description: Reference tables for the arcdps combat-event enums — cbtstatechange, cbtresult, iff, cbtanimation, cbtbuffremove, and n_customskill.
+description: Reference tables for the arcdps combat-event enums — cbtstatechange, cbtresult, iff, cbtanimation, cbtbuffremove, n_customskill, gwlanguage, and n_contentlocal.
 source: official-docs
 ---
 
@@ -21,11 +21,11 @@ the one exception, explicitly starting at `23275`.
 This is the event-type discriminant on [`cbtevent`](/reference/data-structures/cbtevent/)
 — its value determines how every other field on the struct (besides
 `time`) is interpreted. The "Meaning" column below is the enum's own
-inline comment; it is **not** the full per-field payload mapping for that
-event type (that mapping is extensive — several fields per event type —
-and is only reproduced in full in the source EVTC document). Entries
-suffixed `_DEFUNC` are explicitly marked **retired** in the source and
-should not be relied on for current arcdps builds.
+inline comment; the full per-field payload mapping for every event
+type, including each type's evtc/realtime availability, is on the
+[statechange payloads](/reference/enums/statechange-payloads/) page.
+Entries suffixed `_DEFUNC` are explicitly marked **retired** in the
+source and should not be relied on for current arcdps builds.
 
 | Value | Name | Meaning |
 | --- | --- | --- |
@@ -228,10 +228,78 @@ every subsequent enumerator increments sequentially from there.
 | 23308 | `CSK_PICKUP` | item id given in the paired `CBTS_ANIMATIONSTART` event |
 | 23309 | `CSK_GENERICFALLDOWN` | undocumented — no inline comment given |
 
+## `gwlanguage` (text language)
+
+Backs the `CBTS_LANGUAGE` statechange's `src_agent` payload. Note the
+gap: there is no value 1.
+
+| Value | Name | Language |
+| --- | --- | --- |
+| 0 | `GWL_ENG` | English |
+| 2 | `GWL_FRE` | French |
+| 3 | `GWL_GEM` | German |
+| 4 | `GWL_SPA` | Spanish |
+| 5 | `GWL_CN` | Chinese |
+
+The [Unofficial Extras](/reference/unofficial-extras/) `Language` enum
+uses identical values.
+
+## `n_contentlocal` (content types)
+
+Backs the `overstack_value` of `CBTS_IDTOGUID` events — the type of
+content whose id-to-GUID association is being reported. Sequential
+from 0.
+
+| Value | Name | Notes (from the source's inline comments) |
+| --- | --- | --- |
+| 0 | `CONTENTLOCAL_EFFECT` | `src_instid`: content type; `(float*)&buff_dmg` is the default duration, if available (when the effect event has no duration or agent set) |
+| 1 | `CONTENTLOCAL_MARKER` | `src_instid`: is in commander-tag defs |
+| 2 | `CONTENTLOCAL_SKILL` | no extra data — see `CBTS_SKILLINFO`/`CBTS_BUFFINFO` events |
+| 3 | `CONTENTLOCAL_SPECIES_NOT_GADGET` | no extra data |
+| 4 | `CONTENTLOCAL_EMOTE` | no extra data |
+| 5 | `CONTENTLOCAL_TRANSFORMATION` | no extra data |
+
+The source also defines two enums marked "(debug only, subject to
+change)" — `n_animationstart` and `n_animationstop` — which are not
+reproduced here because the source itself flags them as unstable.
+
+## Profession ids (community)
+
+The EVTC docs don't enumerate profession ids; the values below are
+**community knowledge** (used identically by the Rust bindings and
+matching the game's `code` values from the official GW2 web API's
+`/v2/professions` endpoint). They back `ag.prof` for players,
+`evtc_agent.prof`, and the `value` field of
+`CBTS_ENTERCOMBAT`/`CBTS_EXITCOMBAT`.
+
+| Value | Profession |
+| --- | --- |
+| 0 | unknown |
+| 1 | Guardian |
+| 2 | Warrior |
+| 3 | Engineer |
+| 4 | Ranger |
+| 5 | Thief |
+| 6 | Elementalist |
+| 7 | Mesmer |
+| 8 | Necromancer |
+| 9 | Revenant |
+
+This ordering is corroborated by the arcdps binary itself: its icon
+strings run `001`–`009` and its profession list appears in exactly
+this order ("guardian, warrior, engineer, ranger, thief,
+elementalist, mesmer, necromancer, revenant") in the settings UI
+strings. Elite specialization ids (`ag.elite` /
+`evtc_agent.is_elite`) are the game's specialization ids from
+`/v2/specializations` — a larger, game-managed id space not
+enumerated here (`0xFFFFFFFF` marks a non-player agent; see the
+[EVTC agent classification rules](/reference/evtc-format/#agent-table)).
+
 ## See also
 
+- [Statechange payloads](/reference/enums/statechange-payloads/) — the
+  full per-event field mapping for every `cbtstatechange` value.
 - [`cbtevent`](/reference/data-structures/cbtevent/) — the struct these
-  enums back, plus the note that per-event field mappings are extensive
-  and only fully reproduced in the source EVTC document.
+  enums back.
 - [`agent (ag)`](/reference/data-structures/agent/) — the accompanying
   agent struct.
