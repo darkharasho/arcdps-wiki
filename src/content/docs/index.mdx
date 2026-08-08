@@ -14,4 +14,35 @@ hero:
       icon: external
 ---
 
-This is the seed of the arcdps developer wiki. Content is filled in by later tasks.
+import { CardGrid, Card } from '@astrojs/starlight/components';
+
+## What is arcdps?
+
+arcdps ships as a `d3d11.dll` proxy that GW2 loads in place of the real
+Direct3D 11 library; it forwards the real D3D calls through while adding a
+combat-log overlay and, most importantly for developers, an extension
+surface. Once loaded, arcdps exposes a small export table that other DLLs
+(`arcdps_*.dll` extension modules) can hook into — most notably a combat
+event callback and a handful of helper exports (`e0`, `e3`, `e4`–`e10`) for
+things like reading the INI path, writing to the arcdps log, and drawing
+into arcdps' own UI. Everything on this site describes that surface: the
+addon lifecycle, the structs passed across it, and the raw exports on the
+DLL itself.
+
+<CardGrid stagger>
+	<Card title="Extension API" icon="setting">
+		The addon contract (`get_init_addr` / `get_release_addr`), the combat
+		callback, `arcdps_exports`, and the extension registry.
+	</Card>
+	<Card title="Data Structures" icon="document">
+		`cbtevent` and `ag` (agent) — the structs passed into your combat
+		callback on every event.
+	</Card>
+	<Card title="Enums" icon="list-format">
+		Event, state-change, and other enum values used across the combat API.
+	</Card>
+	<Card title="Exports" icon="download">
+		The full raw DLL export table, including the D3D11 proxy exports and
+		the addon-facing helper exports.
+	</Card>
+</CardGrid>
