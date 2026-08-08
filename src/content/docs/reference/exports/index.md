@@ -36,7 +36,7 @@ the DLL's real export table.
 | Direct3D 11 interop (WinRT) | `CreateDirect3D11DeviceFromDXGIDevice`, `CreateDirect3D11SurfaceFromDXGISurface` | [DirectX proxy exports](/reference/exports/directx-proxy/) |
 | DXGI/D3D10 legacy layered-device internals | `DXGID3D10CreateDevice`, `DXGID3D10CreateLayeredDevice`, `DXGID3D10GetLayeredDeviceSize`, `DXGID3D10RegisterLayers`, `OpenAdapter10`, `OpenAdapter10_2` | [DirectX proxy exports](/reference/exports/directx-proxy/) |
 | DXGI diagnostics and adapter management | `DXGIDeclareAdapterRemovalSupport`, `DXGIDisableVBlankVirtualization`, `DXGIDumpJournal`, `DXGIGetDebugInterface1`, `DXGIReportAdapterConfiguration` | [DirectX proxy exports](/reference/exports/directx-proxy/) |
-| D3DKMT kernel-mode thunks | All 32 `D3DKMT*` exports | [DirectX proxy exports](/reference/exports/directx-proxy/) |
+| D3DKMT kernel-mode thunks | All 34 `D3DKMT*` exports | [DirectX proxy exports](/reference/exports/directx-proxy/) |
 | D3D performance markers | `D3DPerformance_BeginEvent`, `D3DPerformance_EndEvent`, `D3DPerformance_GetStatus`, `D3DPerformance_SetMarker` | [DirectX proxy exports](/reference/exports/directx-proxy/) |
 | PIX capture | `PIXBeginCapture`, `PIXEndCapture`, `PIXGetCaptureState` | [DirectX proxy exports](/reference/exports/directx-proxy/) |
 | Compatibility shims | `ApplyCompatResolutionQuirking`, `CompatString`, `CompatValue`, `SetAppCompatStringPointer`, `EnableFeatureLevelUpgrade`, `UpdateHMDEmulationStatus` | [DirectX proxy exports](/reference/exports/directx-proxy/) |
