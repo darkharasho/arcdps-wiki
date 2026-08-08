@@ -9,7 +9,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "snapshot-exports": "node scripts/snapshot-exports.mjs",
-    "test": "vitest run --pool=forks --poolOptions.forks.maxForks=2"
+    "test": "vitest run --pool=forks --poolOptions.forks.maxForks=2",
+    "fonts:fetch": "node scripts/fetch-fonts.mjs"
   },
   "dependencies": {
     "astro": "^5.0.0",

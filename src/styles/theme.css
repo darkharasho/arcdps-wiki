@@ -23,7 +23,8 @@
  *   Mono     "JetBrains Mono" — code, hex offsets, struct fields
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Fonts are self-hosted — see src/styles/fonts.css, wired up in astro.config.mjs
+ * ahead of this file. No external font CDN request at runtime. */
 
 :root {
   /* ---- Type ---- */

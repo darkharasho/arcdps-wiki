@@ -25,6 +25,23 @@ npm test         # vitest suite, including the export-drift test
 `npm run build` must succeed with no broken links, and `npm test` must pass,
 before opening a PR — CI runs both again on the PR.
 
+## Fonts
+
+Webfonts are **self-hosted** from `public/fonts/` — the site makes no
+third-party font CDN request at runtime (privacy, and one less DNS/TLS
+round-trip on the render path). `src/styles/fonts.css` holds the generated
+`@font-face` rules and is loaded ahead of the theme in `astro.config.mjs`.
+
+Both `public/fonts/*.woff2` and `src/styles/fonts.css` are generated — don't
+edit them by hand. To change weights or families, edit the spec at the top of
+`scripts/fetch-fonts.mjs` and re-run:
+
+```bash
+npm run fonts:fetch
+```
+
+Families ship under the SIL Open Font License 1.1; see `public/fonts/README.md`.
+
 ## Refreshing the export snapshot
 
 Several reference pages describe arcdps' DLL export table. That table is
