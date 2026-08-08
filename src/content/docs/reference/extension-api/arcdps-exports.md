@@ -38,7 +38,9 @@ noted.
 wchar_t* e0();
 ```
 
-Returns a `wchar_t*` path to the arcdps ini file. No parameters.
+Returns a `wchar_t*` (UTF-16) path to the arcdps ini file
+(`<GW2 dir>\addons\arcdps\arcdps.ini`). No parameters. Extensions
+conventionally store their own settings next to it.
 
 ## e3 — log to arcdps.log
 
@@ -63,6 +65,11 @@ implementation if your extension needs it.
 ```c
 void e5(ImVec4** out);
 ```
+
+Community-verified caveat: the entries may still be **null pointers in
+the first frames after load** — keep a fallback palette until arcdps
+has populated them. Subgroup indices are valid `0..=15` per the
+community bindings.
 
 Writes colour array pointers to `*out`, where `*out` is an `ImVec4* out[5]`:
 

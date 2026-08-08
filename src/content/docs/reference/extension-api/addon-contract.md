@@ -31,8 +31,23 @@ The arcdps API reference published at
 on the Getting Started page. It does **not** mention any of the six
 symbols below — they are **undocumented** by the official arcdps notes.
 Nothing on this page should be treated as arcdps' own description of these
-exports; it is provided as a placeholder pending verification against the
-reference implementation.
+exports; where behavior is asserted, it is labeled as binary evidence.
+
+## Binary evidence: arcdps has an explicit "addon mode"
+
+Strings in the arcdps DLL (build `1.2026.718.905`) confirm that
+arcdps distinguishes two load modes at startup: it logs
+`info: as <mode> …` where the mode string is either `proxy` or
+`addon`, and at least one options item is annotated "Unsupported when
+running in addon mode". That is, arcdps supports being loaded **by an
+addon manager** rather than as the `d3d11.dll` proxy — which is what
+the `gw2addon_*`/`GetAddonDef` export family exists for. The exact
+struct layouts and calling conventions of those exports remain
+unpublished; the mode itself is no longer speculative.
+
+This matches real-world deployments: on Wine/Proton setups where DXVK
+owns the `d3d11.dll` name, arcdps is commonly run from an addon
+directory in addon mode.
 
 ## Symbol reference
 

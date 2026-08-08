@@ -21,7 +21,13 @@ Descriptions for `addextension2`, `removeextension2`, and `listextension`
 are sourced from the official arcdps API reference
 (`https://www.deltaconnected.com/arcdps/api/README.txt`).
 `c_closeandupdate` and `c_exceptionerrormsg` are **not** described in that
-document — they are marked undocumented below.
+document — their sections below are reconstructed from binary evidence
+(strings in arcdps build `1.2026.718.905`) and labeled as such.
+
+One naming note for readers of community bindings: the Rust
+`arcdps-rs` bindings expose `removeextension2` under the name
+`freeextension2` — the actual export in arcdps' table is
+`removeextension2`.
 
 ## addextension2 — load an extension
 
@@ -99,30 +105,45 @@ The callback is invoked once for each extension currently loaded, with a
 pointer to that extension's `arcdps_exports` table (the same struct shape
 described in [Getting Started](/getting-started/#the-arcdps_exports-struct)).
 
-## c_closeandupdate — undocumented
+## c_closeandupdate — rundll32 self-update entry point
 
-```c
-/* signature undocumented */
+Not described in the official arcdps API reference — but the arcdps
+binary itself (build `1.2026.718.905`) reveals how it's used. The DLL
+contains this command-line template:
+
+```
+rundll32.exe "%s",c_closeandupdate "%lu,%s"
 ```
 
-Not described in the official arcdps API reference. The name suggests it
-triggers a close-and-self-update sequence (compare the optional
-`get_update_url` export documented for extensions on
-[Getting Started](/getting-started/), which arcdps uses to self-update
-*extensions*) — but no parameters, return value, or confirmed behavior are
-given in the published notes. Undocumented — verify against the reference
-implementation.
+i.e. arcdps re-invokes **itself** through `rundll32.exe`, calling this
+export in a fresh process to swap in a downloaded update after the
+game closes. Surrounding strings confirm the workflow: staged
+`*.dll_update` files, "failed to find arcdps dll_update file, update
+aborted", "multiple arcdps modules detected, update aborted", and
+"failed to find arcdps in process module list". The signature is
+therefore the standard rundll32 entry convention
+(`void CALLBACK fn(HWND, HINSTANCE, LPSTR cmdline, int)`), with the
+`"%lu,%s"` argument string carrying a process id and path.
 
-## c_exceptionerrormsg — undocumented
+This is an **internal updater mechanism, not extension-facing API** —
+don't call it. (Classification is binary evidence, not official
+documentation.)
 
-```c
-/* signature undocumented */
+## c_exceptionerrormsg — rundll32 crash-dialog entry point
+
+Also undocumented officially; also resolved by binary evidence. The
+DLL contains:
+
+```
+rundll32.exe "%s",c_exceptionerrormsg "%s"
 ```
 
-Not described in the official arcdps API reference. The name suggests it
-retrieves or formats an error message following an exception, but no
-signature or semantics are given. Undocumented — verify against the
-reference implementation.
+used alongside the crash-handler strings ("Intercepted unhandled
+exception in GW2 process. Game will terminate when this box is
+closed") — arcdps spawns itself via rundll32 to display the crash
+dialog from outside the dying game process, with the message text as
+the argument. Same rundll32 entry convention; same caveat: internal,
+not extension-facing.
 
 ## See also
 

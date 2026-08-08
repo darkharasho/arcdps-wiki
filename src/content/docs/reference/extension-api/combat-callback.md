@@ -54,6 +54,38 @@ events, prefer `combat_local`. If you're aggregating area-wide combat
 statistics (e.g. a DPS meter), `combat` is the documented source, with the
 understood delay.
 
+## What the realtime feed does and doesn't carry
+
+The realtime API is **filtered as well as delayed**. Key facts:
+
+- Per the EVTC documentation's per-event availability notes, many
+  statechange types are *never* delivered on the realtime path (most
+  positional, effect, missile, and metadata events are evtc-only),
+  and most of the rest are limited to squad members. The full
+  per-event "evtc:"/"realtime:" availability is listed on the
+  [statechange payloads](/reference/enums/statechange-payloads/) page.
+- Community bindings summarize the delivery guarantee as: at least
+  one participant of a delivered event will be a party/squad member
+  (or minion of one, or a buff applied by the squad in the case of
+  buff removes).
+- The retired `CBTS_APIDELAYED` statechange existed specifically for
+  events "deemed unsafe for realtime" that were held back until the
+  squad left combat — evidence that the delay/filtering is a
+  deliberate anti-cheat design, not an implementation accident.
+
+Two community-verified practical quirks (from working extensions, not
+the official notes):
+
+- **Agent name lifetime** — the `char*` names inside `src`/`dst` are
+  only valid for the duration of the callback. Copy the strings; never
+  store the pointers.
+- **Non-squad hostile players are aggregated** — arcdps reuses the
+  profession id as the agent id for hostile players outside your
+  squad, so a realtime "enemy roster" tops out at roughly one entry
+  per profession. Per-player enemy data only exists in the written
+  [`.evtc` log](/reference/evtc-format/), which appears a few seconds
+  after combat ends.
+
 ## `ev == null` events
 
 `ev` may be `null`. When it is, the meaning of `src`/`dst` changes to
