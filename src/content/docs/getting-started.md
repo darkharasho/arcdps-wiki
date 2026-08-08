@@ -34,7 +34,7 @@ void* get_init_addr(
 
 arcdps calls `LoadLibrary` on your DLL (incrementing its refcount), then
 calls `get_init_addr`, passing the running arc version string, the shared
-ImGui context, the Direct3D device/swapchain pointer, a handle to the arc
+ImGui context, a pointer to the active swapchain, a handle to the arc
 DLL itself, allocator function pointers, and the ImGui version in use.
 
 `get_init_addr` must return a pointer to your **module initialization
@@ -54,11 +54,12 @@ struct it returns is what registers your module's callbacks.
 void* get_release_addr(uint32_t reason);
 ```
 
-Called on unload with a reason code (the exact enum values for `reason`
-are undocumented in the README itself — verify against the reference
-implementation, e.g. `n_arcdpsextensionload`, if you need to branch on the
-unload cause). It must return a pointer to your **module removal
-function** — no parameters, no return value:
+Called on unload with a reason code. `reason` is a value of
+`enum n_arcdpsextensionload` — the same enum `addextension2` returns; its
+values are listed on the
+[extension registry](/reference/extension-api/extension-registry/) page.
+It must return a pointer to your **module removal function** — no
+parameters, no return value:
 
 ```c
 void mod_release();
@@ -138,10 +139,13 @@ the separate EVTC documentation for that struct. See the
 [`cbtevent` reference](/reference/data-structures/cbtevent/) for its field
 layout.
 
-The exact behavior of the `wnd_nofilter` vs. `wnd_filter` distinction (which
-messages each receives, and filtering criteria) is not spelled out in the
-README beyond "processes HWND messages" — undocumented, verify against the
-reference implementation if your extension depends on it.
+The two window-message callbacks differ in filtering: `wnd_nofilter`
+receives "unfiltered window event messages", while `wnd_filter` receives
+"modifiers-filtered window event messages". Both return a `UINT` that is
+assigned to the real `uMsg`. The precise filtering criteria applied to
+`wnd_filter` (i.e. exactly which modifier state suppresses a message) are
+not spelled out in the official notes — verify against the reference
+implementation if your extension depends on the exact rule.
 
 ## Minimal illustrative skeleton
 

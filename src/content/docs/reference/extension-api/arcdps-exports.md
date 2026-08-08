@@ -94,14 +94,28 @@ Returns a bit mask of current UI settings:
 uint64_t e7();
 ```
 
-Returns modifier virtual key ids, word-split within the 64-bit return
-value:
+Returns modifier virtual key ids **word-split** within the 64-bit return
+value. The official notes give the ranges as:
 
-| Bits | Meaning |
+| Bytes | Meaning |
 | --- | --- |
 | 0-1 | mod1 |
 | 2-3 | mod2 |
 | 4-5 | modmulti |
+
+These are byte ranges, i.e. one 16-bit word each — that is what "word
+split" means here, and a Windows virtual key id does not fit in a
+2-bit field.
+
+Derived from the above (not stated verbatim in the official notes), each
+id can be read as:
+
+```c
+uint64_t m = e7();
+uint16_t mod1     = (uint16_t)( m        & 0xFFFF);  /* bytes 0-1 */
+uint16_t mod2     = (uint16_t)((m >> 16) & 0xFFFF);  /* bytes 2-3 */
+uint16_t modmulti = (uint16_t)((m >> 32) & 0xFFFF);  /* bytes 4-5 */
+```
 
 ## e8 — log to logger window, extension tab
 

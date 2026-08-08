@@ -35,7 +35,9 @@ returns — the same load sequence used for extensions discovered
 automatically at startup (see [Getting Started](/getting-started/)).
 
 Return value is `0` on success, or non-zero on error, per
-`enum n_arcdpsextensionload`:
+`enum n_arcdpsextensionload`. (The official notes give the parameter as
+`HINSTANCE hinst` and describe the return only in prose; the `uint32_t`
+return type above is inferred from it being a small status code.)
 
 ```c
 /* arcdps api extension load result */
@@ -58,7 +60,7 @@ enum n_arcdpsextensionload {
 ## removeextension2 — remove an extension
 
 ```c
-uint32_t removeextension2(uint32_t sig);
+HINSTANCE removeextension2(uint32_t sig);
 ```
 
 Removes an extension identified by `sig` (the same `sig` value the
@@ -72,6 +74,13 @@ the module.
 
 Return value is `0` if the module was not found, or the `HINSTANCE` of the
 DLL otherwise.
+
+:::caution[Binding from another language]
+The return value is an `HINSTANCE` — a **pointer-width** handle (64-bit on
+x64), not a 32-bit int. Bind it as a pointer/`usize`/`c_void_p`, not as
+`uint32`, or you will truncate the handle. Note the asymmetry with
+`addextension2`, whose return really is a small status code.
+:::
 
 ## listextension — enumerate loaded extensions
 

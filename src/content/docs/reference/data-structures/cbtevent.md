@@ -23,8 +23,19 @@ likely be 1"):
 > combat event logging (revision 1, when header[12] == 1). all fields
 > except time are event-specific, refer to descriptions of events above
 
-That last sentence is the key fact for reading this page: **only `time`
-has a single fixed meaning across every event.** Every other field's
+That last sentence is the key fact for reading this page: **`time` is the
+only field the notes call out as generally stable across events** — with
+three documented exceptions where it is reinterpreted as an inline data
+buffer rather than a timestamp:
+
+| State-change type | `time` is reinterpreted as |
+| --- | --- |
+| `CBTS_BUFFFORMULA` | `(float*)&time` → `float[9]`: type, attribute1, attribute2, parameter1, parameter2, parameter3, trait_condition_source, trait_condition_self, content_reference |
+| `CBTS_SKILLINFO` | `(float*)&time` → `float[4]`: cost, range0, range1, tooltiptime |
+| `CBTS_INTEGRITY` | `(char*)&time` → `char[32]`: a short null-terminated message with the reason |
+
+Treat `time` as a timestamp only after ruling those three out. Every
+other field's
 meaning depends on the value of `is_statechange` (which state-change type
 the event is) — the same byte offset carries different data for, say,
 `CBTS_COMBAT` versus `CBTS_POSITION` versus `CBTS_BUFFINFO`. See the
@@ -79,7 +90,7 @@ stated explicitly by the source docs.**
 
 | Offset | C type | Name | Meaning |
 | --- | --- | --- | --- |
-| 0 | `uint64_t` | `time` | `timeGetTime()` at time of registering the event. The one field with a fixed meaning across all event types (some event types repurpose it anyway — noted where documented). |
+| 0 | `uint64_t` | `time` | `timeGetTime()` at time of registering the event — except for `CBTS_BUFFFORMULA`, `CBTS_SKILLINFO` and `CBTS_INTEGRITY`, which reinterpret these 8 bytes as an inline data buffer (see the table above). |
 | 8 | `uint64_t` | `src_agent` | Event-specific (see `cbtstatechange` mapping). For `CBTS_COMBAT`: source agent. |
 | 16 | `uint64_t` | `dst_agent` | Event-specific. For `CBTS_COMBAT`: target agent. |
 | 24 | `int32_t` | `value` | Event-specific. For `CBTS_COMBAT`: combined shield+health strike damage. |
