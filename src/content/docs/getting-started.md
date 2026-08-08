@@ -70,7 +70,7 @@ Returning 0 from `get_release_addr` triggers a warning in arcdps.
 
 ```c
 typedef struct arcdps_exports {
-    uintptr_t size;       /* size of exports table */
+    uint64_t size;         /* size of exports table */
     uint32_t sig;          /* unique identifier for your module */
     uint32_t imguivers;    /* imgui version used to compile your module */
     const char* out_name;  /* module name shown in arcdps addon list */
@@ -147,11 +147,15 @@ reference implementation if your extension depends on it.
 
 The following is **illustrative**, assembled from the documented pieces
 above — the official README does not ship a single complete compilable
-file, so treat this as a starting skeleton rather than a verbatim quote:
+file, so treat this as a starting skeleton rather than a verbatim quote.
+It's written as **C++** (arcdps addons are typically built as C++, and the
+`extern "C"` linkage specifier below requires it — a pure-C compiler will
+reject this file):
 
-```c
+```cpp
 #include <windows.h>
-#include <stdint.h>
+#include <cstdint>
+#include <cstring>
 
 typedef struct ag {
     const char* name;
@@ -163,7 +167,7 @@ typedef struct ag {
 } ag;
 
 typedef struct arcdps_exports {
-    uintptr_t size;
+    uint64_t size;
     uint32_t sig;
     uint32_t imguivers;
     const char* out_name;
