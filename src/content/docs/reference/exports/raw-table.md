@@ -1,0 +1,117 @@
+---
+title: Raw export table
+description: The full, alphabetically sorted list of all 91 symbols in arcdps' DLL export table.
+source: dll-exports
+---
+
+This is the flat, alphabetically sorted appendix version of arcdps'
+complete DLL export table, taken directly from the snapshot at
+`data/arcdps-exports.json` — all 91 symbols, with no grouping applied.
+
+For explanations grouped by function, see the [export reference
+overview](/reference/exports/): arcdps' own extension-facing exports are
+documented individually under [Extension
+API](/reference/extension-api/addon-contract/), and the DirectX/DXGI/
+D3DKMT/PIX/compat proxy forwards are documented as a group on the
+[DirectX proxy exports](/reference/exports/directx-proxy/) page.
+
+## All exports
+
+- `ApplyCompatResolutionQuirking`
+- `CompatString`
+- `CompatValue`
+- `CreateDXGIFactory`
+- `CreateDXGIFactory1`
+- `CreateDXGIFactory2`
+- `CreateDirect3D11DeviceFromDXGIDevice`
+- `CreateDirect3D11SurfaceFromDXGISurface`
+- `D3D11CoreCreateDevice`
+- `D3D11CoreCreateLayeredDevice`
+- `D3D11CoreGetLayeredDeviceSize`
+- `D3D11CoreRegisterLayers`
+- `D3D11CreateDevice`
+- `D3D11CreateDeviceAndSwapChain`
+- `D3D11CreateDeviceForD3D12`
+- `D3D11On12CreateDevice`
+- `D3DKMTCloseAdapter`
+- `D3DKMTCreateAllocation`
+- `D3DKMTCreateContext`
+- `D3DKMTCreateDevice`
+- `D3DKMTCreateSynchronizationObject`
+- `D3DKMTDestroyAllocation`
+- `D3DKMTDestroyContext`
+- `D3DKMTDestroyDevice`
+- `D3DKMTDestroySynchronizationObject`
+- `D3DKMTEscape`
+- `D3DKMTGetContextSchedulingPriority`
+- `D3DKMTGetDeviceState`
+- `D3DKMTGetDisplayModeList`
+- `D3DKMTGetMultisampleMethodList`
+- `D3DKMTGetRuntimeData`
+- `D3DKMTGetSharedPrimaryHandle`
+- `D3DKMTLock`
+- `D3DKMTOpenAdapterFromHdc`
+- `D3DKMTOpenResource`
+- `D3DKMTPresent`
+- `D3DKMTQueryAdapterInfo`
+- `D3DKMTQueryAllocationResidency`
+- `D3DKMTQueryResourceInfo`
+- `D3DKMTRender`
+- `D3DKMTSetAllocationPriority`
+- `D3DKMTSetContextSchedulingPriority`
+- `D3DKMTSetDisplayMode`
+- `D3DKMTSetDisplayPrivateDriverFormat`
+- `D3DKMTSetGammaRamp`
+- `D3DKMTSetVidPnSourceOwner`
+- `D3DKMTSignalSynchronizationObject`
+- `D3DKMTUnlock`
+- `D3DKMTWaitForSynchronizationObject`
+- `D3DKMTWaitForVerticalBlankEvent`
+- `D3DPerformance_BeginEvent`
+- `D3DPerformance_EndEvent`
+- `D3DPerformance_GetStatus`
+- `D3DPerformance_SetMarker`
+- `DXGID3D10CreateDevice`
+- `DXGID3D10CreateLayeredDevice`
+- `DXGID3D10GetLayeredDeviceSize`
+- `DXGID3D10RegisterLayers`
+- `DXGIDeclareAdapterRemovalSupport`
+- `DXGIDisableVBlankVirtualization`
+- `DXGIDumpJournal`
+- `DXGIGetDebugInterface1`
+- `DXGIReportAdapterConfiguration`
+- `EnableFeatureLevelUpgrade`
+- `GetAddonDef`
+- `OpenAdapter10`
+- `OpenAdapter10_2`
+- `PIXBeginCapture`
+- `PIXEndCapture`
+- `PIXGetCaptureState`
+- `SetAppCompatStringPointer`
+- `UpdateHMDEmulationStatus`
+- `addextension2`
+- `arcdps_identifier_export`
+- `arcdps_imguiversion_export`
+- `c_closeandupdate`
+- `c_exceptionerrormsg`
+- `e0`
+- `e10`
+- `e3`
+- `e4`
+- `e5`
+- `e6`
+- `e7`
+- `e8`
+- `e9`
+- `gw2addon_get_description`
+- `gw2addon_load`
+- `gw2addon_unload`
+- `listextension`
+- `removeextension2`
+
+## See also
+
+- [Export reference overview](/reference/exports/) — grouped-by-function
+  index linking each group to its documenting page.
+- [DirectX proxy exports](/reference/exports/directx-proxy/) — the
+  71-symbol DirectX/DXGI/D3DKMT/PIX/compat proxy group.

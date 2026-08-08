@@ -16,6 +16,9 @@ describe('export drift', () => {
     expect(unknown).toEqual([]);
   });
 
-  // TODO(Task 9): flip back to `it(...)` once exports/*.md cover all 91 symbols via exportSymbols frontmatter.
-  it.todo('every DLL export is documented on some page');
+  // Task 9: exports/*.md now cover all 91 symbols via exportSymbols frontmatter.
+  it('every DLL export is documented on some page', () => {
+    const missing = snapshot.exports.filter((s) => !documented.has(s));
+    expect(missing).toEqual([]);
+  });
 });
