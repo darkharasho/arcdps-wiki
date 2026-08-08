@@ -70,8 +70,13 @@ export-drift test (`tests/export-drift.test.ts`, backed by
 - asserts every symbol listed anywhere is present in the current DLL
   snapshot (`data/arcdps-exports.json`) — catching stale or typo'd symbol
   names, and
-- asserts every export in that snapshot is documented on **exactly one**
+- asserts every export in that snapshot is documented on **at least one**
   page — catching exports nobody has written up yet.
+
+The documented-symbols set is a union across all pages, so the test does
+**not** detect the same symbol being listed on two different pages. Avoid
+documenting a symbol on more than one page as a project convention, but be
+aware CI won't catch a cross-page duplicate for you.
 
 **The frontmatter parser only recognizes the dash-list form shown above.**
 An inline array (`exportSymbols: [Foo, Bar]`) will not match the parser's
