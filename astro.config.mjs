@@ -7,6 +7,7 @@ export default defineConfig({
     starlight({
       title: 'arcdps wiki',
       description: 'Community technical reference for the arcdps Guild Wars 2 addon.',
+      favicon: '/favicon.svg',
       customCss: ['./src/styles/fonts.css', './src/styles/theme.css'],
       social: {
         github: 'https://github.com/darkharasho/arcdps-wiki',

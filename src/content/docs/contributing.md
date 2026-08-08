@@ -6,12 +6,16 @@ source: community
 
 This wiki is a Git-backed, Markdown-driven docs site. There is no in-browser
 editor and no live database — every change goes through a GitHub pull
-request. This page covers the workflow and the conventions your PR is
-expected to follow.
+request against the repository at
+**[github.com/darkharasho/arcdps-wiki](https://github.com/darkharasho/arcdps-wiki)**.
+This page covers the workflow and the conventions your PR is expected to
+follow. Found a mistake but don't want to write the fix yourself?
+[Open an issue](https://github.com/darkharasho/arcdps-wiki/issues) instead.
 
 ## PR workflow
 
-1. **Fork** the repository and create a **branch** for your change.
+1. **Fork** [the repository](https://github.com/darkharasho/arcdps-wiki)
+   and create a **branch** for your change.
 2. Edit or add Markdown/MDX pages under `src/content/docs/`.
 3. **Open a pull request** against `main`.
 4. Cloudflare Pages builds a **preview deploy** for the PR automatically, so
