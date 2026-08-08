@@ -15,6 +15,15 @@ export default defineConfig({
         { label: 'Overview', link: '/' },
         { label: 'Getting Started', link: '/getting-started/' },
         {
+          label: 'Guides',
+          items: [
+            { label: 'Installation, files & settings', link: '/guides/installation-and-files/' },
+            { label: 'Writing an extension', link: '/guides/writing-an-extension/' },
+            { label: 'Parsing EVTC logs', link: '/guides/parsing-logs/' },
+            { label: 'Ecosystem', link: '/guides/ecosystem/' },
+          ],
+        },
+        {
           label: 'Extension API',
           items: [
             { label: 'Addon contract', link: '/reference/extension-api/addon-contract/' },
@@ -30,7 +39,13 @@ export default defineConfig({
             { label: 'agent (ag)', link: '/reference/data-structures/agent/' },
           ],
         },
-        { label: 'Enums', link: '/reference/enums/' },
+        {
+          label: 'Enums',
+          items: [
+            { label: 'Enum reference', link: '/reference/enums/' },
+            { label: 'Statechange payloads', link: '/reference/enums/statechange-payloads/' },
+          ],
+        },
         {
           label: 'Exports',
           items: [
@@ -39,7 +54,15 @@ export default defineConfig({
             { label: 'Raw export table', link: '/reference/exports/raw-table/' },
           ],
         },
-        { label: 'EVTC log format', link: '/reference/evtc-format/' },
+        {
+          label: 'EVTC logs',
+          items: [
+            { label: 'EVTC log format', link: '/reference/evtc-format/' },
+            { label: 'Encounter IDs', link: '/reference/encounter-ids/' },
+          ],
+        },
+        { label: 'Unofficial Extras', link: '/reference/unofficial-extras/' },
+        { label: 'API revision history', link: '/reference/api-history/' },
         { label: 'Contributing', link: '/contributing/' },
       ],
     }),

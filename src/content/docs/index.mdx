@@ -34,17 +34,21 @@ DLL itself.
 <CardGrid stagger>
 	<Card title="Extension API" icon="setting">
 		The addon contract (`get_init_addr` / `get_release_addr`), the combat
-		callback, `arcdps_exports`, and the extension registry.
+		callback, `arcdps_exports`, and the extension registry — plus a
+		[field-tested practice guide](/guides/writing-an-extension/).
 	</Card>
-	<Card title="Data Structures" icon="document">
-		`cbtevent` and `ag` (agent) — the structs passed into your combat
-		callback on every event.
+	<Card title="EVTC log format" icon="document">
+		A full binary spec of `.evtc`/`.zevtc` logs — header, agent and
+		skill tables, event stream, and the standard parsing recipe.
 	</Card>
-	<Card title="Enums" icon="list-format">
-		Event, state-change, and other enum values used across the combat API.
+	<Card title="Enums & payloads" icon="list-format">
+		Every enum value, and the [complete per-statechange payload
+		mapping](/reference/enums/statechange-payloads/) with evtc/realtime
+		availability.
 	</Card>
-	<Card title="Exports" icon="download">
-		The full raw DLL export table, including the D3D11 proxy exports and
-		the addon-facing helper exports.
+	<Card title="Guides" icon="open-book">
+		[Installation, files & settings](/guides/installation-and-files/),
+		the [tool ecosystem](/guides/ecosystem/), and the
+		[Unofficial Extras API](/reference/unofficial-extras/).
 	</Card>
 </CardGrid>
