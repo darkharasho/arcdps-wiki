@@ -1,0 +1,22 @@
+{
+  "name": "arcdps-wiki",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "snapshot-exports": "node scripts/snapshot-exports.mjs",
+    "test": "vitest run --pool=forks --poolOptions.forks.maxForks=2"
+  },
+  "dependencies": {
+    "astro": "^5.0.0",
+    "@astrojs/starlight": "^0.30.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}
