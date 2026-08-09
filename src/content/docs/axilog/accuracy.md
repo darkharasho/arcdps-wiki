@@ -20,8 +20,13 @@ Two references, deliberately different in what they can prove:
   *same* log. Both are in the repository, and
   `crates/axilog-core/tests/golden.rs` and its siblings assert against
   them in CI **on every run** — not spot-checked once and left to drift.
-  37 accounts join cleanly between the two exports; that is the
-  denominator behind most pre-era numbers below.
+  Three denominators show up below, and they are all the same fixture:
+  axilog resolves **42** players, EI's export carries **41** player rows
+  (the extra is a known relog straggler with a blank account that
+  contributes 0 to every metric), and the two are joined by agent-table
+  index → account name. Healing joins all **41**; the boon-, hit-quality-
+  and defense-augmented comparisons join **37**, which is the denominator
+  behind most pre-era numbers below.
 - **Local real-log calibration, both eras.** Raw `.zevtc` files are never
   committed, so a second, larger post-rework capture (48 players, 583k
   events) and its EI export live gitignored under `fixtures/local/`. The
@@ -57,7 +62,9 @@ count.
 
 Pre-era rows are against the committed golden (37 joined accounts);
 post-era rows are against the local post-rework capture (44 joined
-accounts). "Exact" means bit-identical, not within a tolerance.
+accounts). "Exact" means bit-identical wherever a bit-exact assertion
+backs the row; the rows that are gated by a tolerance instead say so and
+state their bar.
 
 | Metric | Result |
 | --- | --- |
@@ -69,8 +76,8 @@ accounts). "Exact" means bit-identical, not within a tolerance.
 | Boon strips (squad) | Exact — 437, and per-player |
 | Resurrect casts (squad) | Exact — 6, and per-player |
 | Boon uptime, presence % | Exact — 444/444 cells (370 duration-type + 74 intensity-type), none over the 2 pp tolerance |
-| Boon average stacks (Might, Stability) | 67/74 cells exact; **7 Stability cells allowlisted** — see below |
-| Boon generation (self/group/squad) | Exact — 148 cells, worst delta 0.097 pp |
+| Boon average stacks (Might, Stability) | Approximate — 67/74 cells within the ≤5 % relative bar; **7 Stability cells allowlisted**, see below |
+| Boon generation (self/group/squad) | 148 cells, worst delta 0.097 pp against a 2 pp bar, no allowlist |
 | `statsAll[0]` hit quality | Exact — all **20** fields, both eras |
 | `defenses[0]` | Exact — all 18 fields, both eras, except one field where [EI is wrong](#where-axilog-is-more-correct-than-ei) |
 | Condition / power / life-leech splits, post-era | **Hard-exact** on 44/44 accounts since the condition catalog landed |
