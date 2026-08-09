@@ -34,6 +34,16 @@ export default defineConfig({
           ],
         },
         {
+          label: 'axilog',
+          items: [
+            { label: 'Overview', link: '/axilog/' },
+            { label: 'Quickstart', link: '/axilog/quickstart/' },
+            { label: 'Calculation methodology', link: '/axilog/methodology/' },
+            { label: 'Output schema', link: '/axilog/schema/' },
+            { label: 'Accuracy & calibration', link: '/axilog/accuracy/' },
+          ],
+        },
+        {
           label: 'Extension API',
           items: [
             { label: 'Addon contract', link: '/reference/extension-api/addon-contract/' },

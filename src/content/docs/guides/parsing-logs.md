@@ -14,7 +14,11 @@ you see here is verified behavior, not just transcription.
 If you're building anything serious, use an established parser
 ([Elite Insights](https://github.com/baaron4/GW2-Elite-Insights-Parser)
 for C#, [`evtc_parse`](https://github.com/Zerthox/arcdps-rs) for Rust)
-— this walkthrough exists to make the format concrete.
+— this walkthrough exists to make the format concrete. If you want to see
+what each step below turns into once it is carried all the way to
+EI-comparable numbers, [axilog](/axilog/) documents its
+[derivations](/axilog/methodology/) and
+[how they are calibrated](/axilog/accuracy/) here on the wiki.
 
 ## 1. Unwrap the zip
 
