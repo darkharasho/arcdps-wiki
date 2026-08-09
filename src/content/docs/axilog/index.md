@@ -144,6 +144,8 @@ a bug report, sharing a log, or committing a fixture.
 
 - [Calculation methodology](/axilog/methodology/) — how each metric is
   derived, and what it is grounded in.
+- [Accuracy & calibration](/axilog/accuracy/) — the golden fixture, the
+  headline numbers against EI, and the gaps.
 - [Ecosystem](/guides/ecosystem/) — the wider arcdps tool landscape.
 - [Reading damage from logs](/guides/reading-damage/) — the raw-event
   rules axilog's damage accumulation implements.

@@ -37,9 +37,10 @@ export default defineConfig({
           label: 'axilog',
           items: [
             { label: 'Overview', link: '/axilog/' },
+            { label: 'Quickstart', link: '/axilog/quickstart/' },
             { label: 'Calculation methodology', link: '/axilog/methodology/' },
             { label: 'Output schema', link: '/axilog/schema/' },
-            { label: 'Quickstart', link: '/axilog/quickstart/' },
+            { label: 'Accuracy & calibration', link: '/axilog/accuracy/' },
           ],
         },
         {
