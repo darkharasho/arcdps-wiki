@@ -24,6 +24,7 @@ export default defineConfig({
             { label: 'Reading damage', link: '/guides/reading-damage/' },
             { label: 'Boons, buffs & uptime', link: '/guides/boons-and-buffs/' },
             { label: 'Timestamps & duration', link: '/guides/log-timing/' },
+            { label: 'Movement & effects', link: '/guides/movement-and-effects/' },
             { label: 'Recording WvW logs', link: '/guides/recording-wvw-logs/' },
             { label: 'WvW maps in logs', link: '/guides/wvw-maps/' },
             { label: 'WvW team colors', link: '/guides/wvw-team-colors/' },
