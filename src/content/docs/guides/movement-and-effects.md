@@ -69,9 +69,9 @@ all 671 effect ids had a matching type-`CONTENTLOCAL_EFFECT` entry
 name the id field explicitly). Build the GUID map first, then key
 your effect logic on GUIDs, which are stable across logs.
 
-(The log also contained 24 `IDTOGUID` events with content type `3`,
-one past the documented `n_contentlocal` range of 0–2 — a newer,
-still-undocumented content type.)
+(The log also contained 24 `IDTOGUID` events with content type `3` —
+[`CONTENTLOCAL_SPECIES_NOT_GADGET`](/reference/enums/#n_contentlocal-content-types),
+associating NPC species ids with GUIDs.)
 
 **Removes are rare; durations matter.** Ground effects: 3,269
 creates, **zero** removes. Agent effects: 5,049 creates, 41 removes.
