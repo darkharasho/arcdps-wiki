@@ -48,6 +48,22 @@ parse pre-revision-1 logs, mirror `ReadCombatItem` vs
 | [arcdps_bindings](https://github.com/greaka/arcdps_bindings) | Rust | "rust wrapper for creating gw2 arcdps addons" — the original `arcdps_export!` macro crate that arcdps-rs forked from. |
 | [arcdps-extension](https://github.com/Zinn-o-Matics/arcdps-extension) | C++ | "Utilities to use for arcdps addons": update checker, DX11 icon loader, network stack, typed combat-event dispatch and an `EventSequencer` for re-ordering async events, localization, keybind handling, MumbleLink. Formerly `knoxfighter/arcdps-extension` (URL redirects). |
 
+## The axi suite
+
+The axi suite is a family of arcdps-adjacent tools by
+[darkharasho](https://github.com/darkharasho) — the maintainer of
+this wiki, so consider this section a self-listing. Same
+verification rule as the rest of the page: every entry checked at
+its URL on 2026-08-09; descriptions quote each project's own README.
+
+| Tool | What it is |
+| --- | --- |
+| [axilog](https://github.com/darkharasho/axilog) | "Cross-platform, CLI-first GW2 arcdps combat log parser with a reusable Rust core" — Rust parsing core with native Node and Python SDKs; "matches standard Elite Insights (EI) functionality for the metrics it currently covers", with WvW logs as the current focus. |
+| [AxiBridge](https://github.com/darkharasho/axibridge) | "Automatically uploads arcdps logs, summarizes WvW fights, and sends clean, readable reports to Discord or the web" — log-folder watcher with rankings/MVPs, Discord embeds, and persistent web reports. |
+| [AxiPulse](https://github.com/darkharasho/axipulse) | "Personal GW2 combat analysis dashboard" — a desktop companion that "watches your arcdps log folder, parses each fight locally with Elite Insights", managing the EI install (and, on Linux, the .NET runtime) automatically. |
+| [arcdps_axipulse](https://github.com/darkharasho/arcdps-axipulse) | The in-game half of AxiPulse: "a Rust ArcDPS plugin that runs the bundled Elite Insights CLI against each .evtc your client writes, parses the JSON output, and renders WvW combat overlays in-game." |
+| [arcdps-player-outline](https://github.com/darkharasho/arcdps-player-outline) | An arcdps plugin that "draws a persistent, always-on-top marker on your own character — so you can instantly find yourself in a crowded zerg," using MumbleLink position projected to screen space. |
+
 There is no official arcdps source repository — deltaconnected's
 GitHub account has no public repos. The canonical API and EVTC
 documentation live at
