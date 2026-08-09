@@ -38,6 +38,8 @@ export default defineConfig({
           items: [
             { label: 'Overview', link: '/axilog/' },
             { label: 'Calculation methodology', link: '/axilog/methodology/' },
+            { label: 'Output schema', link: '/axilog/schema/' },
+            { label: 'Quickstart', link: '/axilog/quickstart/' },
           ],
         },
         {
