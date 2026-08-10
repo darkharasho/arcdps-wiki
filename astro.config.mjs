@@ -39,8 +39,12 @@ export default defineConfig({
             { label: 'Overview', link: '/axilog/' },
             { label: 'Quickstart', link: '/axilog/quickstart/' },
             { label: 'Calculation methodology', link: '/axilog/methodology/' },
+            { label: 'Damage modifiers', link: '/axilog/damage-modifiers/' },
+            { label: 'Buffs & boons', link: '/axilog/buffs/' },
+            { label: 'Combat replay', link: '/axilog/combat-replay/' },
             { label: 'Output schema', link: '/axilog/schema/' },
             { label: 'Accuracy & calibration', link: '/axilog/accuracy/' },
+            { label: 'Parity & divergences', link: '/axilog/parity/' },
           ],
         },
         {

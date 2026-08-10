@@ -1,6 +1,6 @@
 ---
 title: axilog calculation methodology
-description: How axilog derives each metric from the raw EVTC stream — damage and pet folding, arcdps down contribution, CC, boon simulation, condition classification, rotation, and combat replay — and what each rule is grounded in.
+description: How axilog derives each metric from the raw EVTC stream — damage and pet folding, the orphaned-instid repair, arcdps down contribution, CC, condition classification, rotation and cast tracking — and what each rule is grounded in.
 source: community
 ---
 
@@ -9,6 +9,16 @@ into numbers, and — more importantly — *why each rule is the right one*.
 It is a distillation; the crate module docs in the
 [axilog repository](https://github.com/darkharasho/axilog) carry the
 line-level citations.
+
+Three subsystems are large enough to have their own pages, and this one
+only summarises them:
+
+- [Damage modifiers](/axilog/damage-modifiers/) — the 205-definition
+  catalog and the attribution engine.
+- [Buffs & boons](/axilog/buffs/) — the stack simulation, generation and
+  waste.
+- [Combat replay](/axilog/combat-replay/) — both engines, the polling grid
+  and the map geometry.
 
 ## What the rules are grounded in
 
@@ -24,9 +34,44 @@ That last row is not pedantry. The published EVTC README is known to
 contain errors — its `CBTS_HEALTHPCTUPDATE` note says
 "percent \* 10000 eg. 99.5% will be 9950", which is self-contradictory
 (the real scale is percent × 100, as its own worked example shows and as
-EI's `HealthUpdateEvent` confirms). So enum ordinals are hand-counted
-from the live reference rather than taken from memory or a third-party
+EI's `HealthUpdateEvent` confirms). So enum ordinals are hand-counted from
+the live reference rather than taken from memory or a third-party
 writeup, and cross-checked against EI's `ArcDPSEnums` values.
+
+## Decode: the orphaned-instid repair
+
+Before any analysis runs, one repair pass rewrites the event stream.
+
+arcdps sometimes emits combat rows whose `src_agent`/`dst_agent` is `0`
+while the matching instid field still names a live agent — observed on the
+reference capture on an enemy ranger pet's rows. Every address-keyed pass
+in axilog (damage, hit stats, defenses, skill damage, contribution) would
+silently drop those rows. GW2EI does not: it rewrites the address from the
+instid inside the parser, before analysis. axilog performs the same
+repair, transcribed from `EvtcParser.CompleteAgents` and run as a decode
+post-pass, so every consumer — metrics, the standalone replay/missile
+builders, the SDKs, the EI exporter — reads one repaired stream.
+
+Two honesty notes travel with it:
+
+- **The `±300 ms` bound is two probe points, not a widened window.** GW2EI
+  accepts a candidate agent when
+  `InAwareTimes(t − 300) || InAwareTimes(t + 300)`, so an agent whose
+  entire aware window lies strictly inside `(t−300, t+300)` — one alive
+  for under 600 ms around the orphaned row — fails *both* probes and is
+  rejected. axilog reproduces that literally rather than "fixing" it, and
+  has a unit test that a widened-window implementation would fail.
+- **Roughly a third of orphans stay unrepaired, and that is correct.** On
+  the real 583k-event capture, 725 of 1,091 orphaned rows are repaired;
+  the bulk of the remainder are `CBTS_DESPAWN` rows whose instid names no
+  agent that was aware anywhere near them. A row with no qualifying
+  candidate keeps its zero address and is dropped downstream, exactly as
+  GW2EI leaves it.
+
+On the committed fixture the repair rewrites 43 rows and moves **no**
+output value; on the post-rework capture it moves one account's always-on
+damage and hit-stat scalars onto GW2EI's values exactly. Cost: one extra
+bounded scan, +9.4% on that stage and +4.2% end to end on the fixture.
 
 ## Damage accumulation and pet folding
 
@@ -34,7 +79,7 @@ The filter itself is the standard one — strike damage from `value` where
 `buff == 0` and `result` ∈ {`NORMAL`, `CRIT`, `GLANCE`}, buff damage from
 `buff_dmg` where `buff == 1`, with `CROWD_CONTROL` (12) and
 `DEFIANCE_DAMAGENORMAL` (10) rows excluded because they reuse the damage
-fields to carry a CC duration. See
+fields to carry a CC duration or defiance-bar damage. See
 [reading damage](/guides/reading-damage/) for the raw-event view.
 
 The interesting part is **ownership**. Minion, pet and turret damage
@@ -49,23 +94,36 @@ registration observed for each instid, in event order, resolved at the
 querying event's own timestamp to whichever registration was in effect
 then. Where no registration exists at or before that time, resolution
 fails and the event is left uncredited rather than guessed. The same
-registry backs damage, CC, boon-event attribution, healing-extension
-rows and contribution, so all of them agree with each other.
+registry backs damage, CC, boon-event attribution, healing-extension rows,
+contribution and the exported `instanceID` fields, so all of them agree
+with each other.
 
 Two details worth knowing: arcdps extension rows
 (`CBTS_EXTENSION`/`CBTS_EXTENSIONCOMBAT`) do **not** contribute
-registrations — their `src_agent`/`dst_agent` fields are not trustworthy
-— but they are still *resolvable* against ordinary registrations, which
-is exactly what the healing extension needs. And the registry is built
-once per log and threaded through every consumer.
+registrations — their `src_agent`/`dst_agent` fields are not trustworthy —
+but they are still *resolvable* against ordinary registrations, which is
+exactly what the healing extension needs. And the registry is built once
+per log and threaded by reference through every consumer; it used to be
+rebuilt 11 times per parse, and fixing that was the single largest
+performance win in the project.
+
+Not every surface folds minions. GW2EI is inconsistent here on purpose,
+and axilog reproduces the inconsistency rather than normalising it:
+`statsAll[0]` and the player damage distributions are **actor-only**,
+while `statsTargets[i][0].killed`/`downed`/`interrupts` and an enemy's own
+`dpsAll[0]` are **minion-inclusive** — GW2EI's `HasInterrupted`/`HasKilled`/
+`HasDowned` branches sit *outside* its actor guard over a minion-inclusive
+event list, so a pet's finishing blow counts for its owner. Ownership is
+resolved as an agent-level fact rather than per row, because arcdps emits
+many minion rows with `src_master_instid == 0`.
 
 ## The arcdps down-contribution family
 
 This is axilog's founding differentiator, and the one place it is
-deliberately *not* calibrated against EI: EI's own `downContribution`
-uses a different algorithm by design, so there is no golden to match.
-The implementation follows the dev-relayed arcdps methodology, verified
-by unit tests per documented nuance plus real-log sanity checks.
+deliberately *not* calibrated against EI: EI's own `downContribution` uses
+a different algorithm by design, so there is no golden to match. The
+implementation follows the dev-relayed arcdps methodology, verified by
+unit tests per documented nuance plus real-log sanity checks.
 
 ### The window
 
@@ -81,9 +139,9 @@ On a downing blow against a player (an ordinary combat event with
 
 - `anchor(target)` is the last time that target was at or above 99%
   health, decoded from `CBTS_HEALTHPCTUPDATE` into a per-agent step
-  series. Health-anchoring is the point: the window covers *the burst
-  that actually took them down*, not a fixed lookback that either misses
-  a long grind or over-credits a fresh arrival.
+  series. Health-anchoring is the point: the window covers *the burst that
+  actually took them down*, not a fixed lookback that either misses a long
+  grind or over-credits a fresh arrival.
 - If the target was never seen at ≥99%, the anchor is treated as log
   start.
 - After a down is processed, `previous_reset(target)` becomes
@@ -91,13 +149,15 @@ On a downing blow against a player (an ordinary combat event with
   second down of the same target cannot attribute back into the prior
   burst or the invulnerability window.
 - **Both bounds are inclusive.** The upper bound must be — the downing
-  blow's own damage has to be creditable. The lower bound is inclusive
-  so that the very first event of a log is creditable when a window's
-  floor lands exactly on log start.
+  blow's own damage has to be creditable. The lower bound is inclusive so
+  that the very first event of a log is creditable when a window's floor
+  lands exactly on log start.
 
-Downs are processed in time order over the whole log with one global
-reset map keyed by target, which correctly serialises same-target
-dependencies while leaving different targets independent.
+Downs are processed in time order over the whole log with one global reset
+map keyed by target, which correctly serialises same-target dependencies
+while leaving different targets independent. Since MPERF the window is
+binary-searched out of one sorted index rather than rescanning the whole
+event list per down.
 
 ### Credit resolution
 
@@ -115,15 +175,27 @@ credited.
 
 | Stat | Rule |
 | --- | --- |
-| `damage` | Sum of damage into the target in the window, CC rows excluded — the same predicate ordinary damage accumulation uses. |
+| `damage` | Sum of health damage into the target in the window — CC rows and defiance-bar rows both excluded, the same predicate ordinary damage accumulation uses. |
 | `cc` | +1 per CC application on the target, reusing the era-gated CC predicate rather than re-deriving it. |
 | `strips` | +1 per hostile `BUFFREMOVE_ALL` of a boon-category buff off the target, with a carve-out for multi-stack Stability. |
 | `movement_impairing` | Impairment amount credited to the impairer, read from a packed instid in a pre-era single-removal row's `overstack` field. |
 
-Both directions are computed in the same pass: `downs_contribution`
-(what a squad player did toward downing an enemy) and `downed_by` (the
-mirror — what was done to a squad player before their own down,
-aggregated onto the victim's row).
+The defiance-bar exclusion in the first row is recent, and the reasoning is
+worth stating because it is *not* a parity argument — there is no EI
+golden here. It is causality: this family measures damage that led to a
+down, and breakbar damage does not reduce health, so it cannot contribute
+to one. Enumerated exposure of the change: zero changed values on the
+committed fixture, and exactly two cells on the reference capture (both
+`downs_contribution.damage`, both moving down). See
+[parity](/axilog/parity/#breakbar-damage-cannot-contribute-to-a-down) for
+the sibling site where the same question resolved the *other* way.
+
+Both directions are computed in the same pass: `downs_contribution` (what
+a squad player did toward downing an enemy) and `downed_by` (the mirror —
+what was done to a squad player before their own down, aggregated onto the
+victim's row). The damage half is additionally split per skill id at the
+one site that assigns the scalar, so the split sums back to the scalar
+exactly.
 
 ## CC and stun breaks
 
@@ -138,77 +210,81 @@ The subtlety is era gating, and it cuts both ways:
   builds, buff rows decode their result byte through the retired
   `ConditionResult` enum, which has no value 12 at all — byte 12 there
   means "unknown", not CC. Without the guard, ordinary boon-stack
-  applications (Might, Stability, Fury, Vulnerability, Resolution)
-  collide with `CROWD_CONTROL` and produce nonsensical multi-minute "CC
+  applications (Might, Stability, Fury, Vulnerability, Resolution) collide
+  with `CROWD_CONTROL` and produce nonsensical multi-minute "CC
   durations". This was caught against a real fixture, not hypothesised.
 - **Post-`20260501`, the check must be dropped.** The post-rework branch
   decodes buff rows through the same shared `DamageResult` enum as direct
   rows, so `buff == 1` rows genuinely can carry CC.
 
+Incoming CC is **not** the outgoing rule mirrored. GW2EI applies two
+asymmetries (`SingleActor.cs:935-943`): no source filter, and no minion
+fold. Incoming strips likewise apply the credited-by master fold *before*
+both the unknown and self tests. Both are reproduced verbatim, and all
+four resulting fields are exact on 44/44 post-rework and 37/37 pre-rework
+accounts.
+
 Stun breaks come from `CBTS_STUNBREAK`, keyed on `src_agent` — the agent
 whose stun broke early — with `value` as the remaining stun duration
 removed. Both the count and the removed-stun milliseconds are reported.
 
-## Boon simulation
+Defiance-bar damage dealt is decoded separately, minion-inclusive and
+foe-filtered, and converted at the adapter boundary by GW2EI's own rule
+(`Math.Round(value / 10.0, 1)`) — which is why the core carries a raw
+integer sum.
 
-Boon uptime is not a matter of summing durations; it is a per-(agent,
-buff) stack-count state machine over apply/remove events, reproducing
-EI's default "NoID" buff simulator. Two tick models, and getting this
-wrong is the classic source of inflated uptimes:
+## Boon simulation, in one paragraph
 
-- **Intensity-type** boons (Might, Stability — `BuffStackType.Stacking`
-  and `StackingConditionalLoss`) genuinely tick every held stack down
-  concurrently.
-- **Duration-type / queue** boons (the other ten) do not. Only the active
-  stack at index 0 ticks; every queued stack is **frozen** — its
-  remaining duration does not decrease — until it is promoted to index 0
-  when the active stack expires or is removed. Modelling all stacks as
-  continuously ticking, as a naive implementation does, systematically
-  under-reports uptime.
+Boon uptime is a per-`(agent, buff)` stack-count state machine over
+apply/remove events, reproducing EI's default "NoID" buff simulator. Two
+tick models: intensity boons (Might, Stability) genuinely tick every held
+stack down concurrently; duration boons tick **only the active stack at
+index 0**, with every queued stack frozen until promoted. Modelling all
+stacks as continuously ticking systematically under-reports uptime. Stack
+capacity is read from the log's own reported per-buff capacity where the
+log carries one, falling back to a transcribed table otherwise. Generation
+and waste attribution run the same two models over the same events,
+crediting the applying source.
 
-**Stack capacity** is read from the log's own reported per-buff capacity
-where the log carries one, falling back to a hardcoded table only when
-it doesn't. This matters for buffs whose real capacity is far above the
-5–9 the table assumes.
-
-**Era gating.** Pre-rework logs carry apply/remove as ordinary combat
-events; post-rework logs carry them as `BUFF_APPLY`, `BUFF_CHANGE`,
-`BUFF_REMOVE_SINGLE` and `BUFF_REMOVE_ALL` statechanges. The extractor
-dispatches on the header build; each pre-era test has a post-era twin
-producing identical output from the other wire shape.
-
-Generation attribution (self/group/squad) runs the same two tick models
-over the same events, crediting the applying agent.
-
-One honest caveat: EI types Stability as `StackingConditionalLoss` (it
-loses a stack instead of being CC'd) while Might is plain `Stacking`, but
-EI's own current simulator source has no branch that distinguishes them.
-A small number of Stability average-stack cells diverge; they are
-allowlisted with the trace rather than guessed at.
+The full treatment — the stacking logics, the two event-pipeline rules
+that took the Stability allowlist to zero, the era split, `HealingLogic`,
+and the GW2EI-shape state timelines — is on the
+[buffs & boons](/axilog/buffs/) page.
 
 ## Condition classification
 
 "Which damage rows are condition damage?" is the question behind EI's
 `conditionDamageTaken`, `connectedConditionCount` and their power-damage
-complements. The obvious answer — *every `buff == 1` hit is a condition*
-— is wrong, and measurably so.
+complements. The obvious answer — *every `buff == 1` hit is a condition* —
+is wrong, and measurably so.
 
-EI's actual predicate is `SkillEvent.ConditionDamageBased(log)`, which is
-a **pure per-skill-id lookup**: is this row's skill id registered as a
+EI's actual predicate is `SkillEvent.ConditionDamageBased(log)`, which is a
+**pure per-skill-id lookup**: is this row's skill id registered as a
 `BuffClassification.Condition` buff? It never consults the row's `buff`
 byte, `result` byte, era, or actor.
 
 An exhaustive scan of the EI tree for `BuffClassification.Condition` at a
 *construction* site (as opposed to a comparison site) finds exactly one
 group: 14 contiguous entries in `CommonBuffs.Conditions`. Notably, the
-15th entry in that same list — "Number of Conditions" — is tagged
-`Other`, and is excluded. No profession or elite-spec helper registers a
-Condition-classified buff. And membership can't grow at runtime: none of
-the 14 carries a build gate, and EI's synthesised unknown-consumable
-buffs can only ever be `Nourishment` or `Enhancement`.
+15th entry in that same list — "Number of Conditions" — is tagged `Other`,
+and is excluded. No profession or elite-spec helper registers a
+Condition-classified buff. And membership cannot grow at runtime: none of
+the 14 carries a build gate, and EI's synthesised unknown-consumable buffs
+can only ever be `Nourishment` or `Enhancement`. Two further guarantees
+make the set exact rather than approximate — EI's own id grouping *throws*
+on a duplicate id, so no other list can shadow a Condition id, and the
+debug-only reclassification never touches `Condition`.
 
-So axilog carries the exact 14-id catalog, and classifies each damage row
-into **four** buckets rather than three:
+The catalog, in ascending id order:
+
+| Ids | Conditions |
+| --- | --- |
+| 720, 721, 722, 723, 727 | Blind, Crippled, Chilled, Poison, Immobile |
+| 736, 737, 738, 742, 791 | Bleeding, Burning, Vulnerability, Weakness, Fear |
+| 861, 19426, 26766, 27705 | Confusion, Torment, Slow, Taunt |
+
+So axilog classifies each damage row into **four** buckets rather than
+three:
 
 1. direct/power (`buff == 0`),
 2. condition (`buff == 1`, skill id in the catalog),
@@ -219,10 +295,13 @@ into **four** buckets rather than three:
 That fourth bucket is not academic. Before the catalog landed, the
 approximation diverged from EI by up to **51.4% relative** on
 `powerDamageTakenCount` on a real post-era capture, affecting 33 of 44
-accounts on the incoming side. It was pure reclassification — total
-events conserved, none dropped or added — which is exactly why it went
-unnoticed against squad totals. With the catalog, every condition, power
-and life-leech field is exact on all 44 joined accounts.
+accounts on the incoming side. It was pure reclassification — total events
+conserved, none dropped or added — which is exactly why it went unnoticed
+against squad totals. With the catalog, every condition, power and
+life-leech field is exact on all 44 joined accounts.
+
+The same fourteen ids, extended with GW2EI's display name and stack type,
+drive the enemy-side condition timelines in `targets[].buffs[]`.
 
 ## Rotation and cast tracking
 
@@ -233,8 +312,8 @@ Casts are reconstructed from start/end animation rows, again era-split:
   `ACTV_MINIMUM` (3), `ACTV_CANCEL` (4), `ACTV_RESET` (5) or
   `ACTV_NODATA` (6) for an end.
 - **Post-era:** the dedicated `ANIMATION_START` (67) / `ANIMATION_STOP`
-  (68) statechanges. The end row's `is_activation` byte keeps its
-  ordinary meaning here — it is not overloaded away.
+  (68) statechanges. The end row's `is_activation` byte keeps its ordinary
+  meaning here — it is not overloaded away.
 
 Pairing is a per-caster, per-skill, time-ordered state machine mirroring
 EI's `CreateAnimatedCastEvent`:
@@ -245,104 +324,86 @@ EI's `CreateAnimatedCastEvent`:
 | END with a START pending | The two pair into one cast. |
 | END with no pending START | An end-only cast, backdated to `end − actual_duration`, kept only if that lands before log start (a genuine pre-log cast, whose cast time is negative). |
 
-Field semantics: on a start row, `value` is the duration until the
-minimum trigger point and `buff_dmg` the duration until control returns
-to the agent; on an end row, `value` is the animation time **scaled for
-speed** and `buff_dmg` the unscaled time. From those, `quickness` is the
+Field semantics: on a start row, `value` is the duration until the minimum
+trigger point and `buff_dmg` the duration until control returns to the
+agent; on an end row, `value` is the animation time **scaled for speed**
+and `buff_dmg` the unscaled time. From those, `quickness` is the
 acceleration ratio between the scaled and unscaled animation times, and
 `timeGained` is `max(scaled_expected − actual, 0)` for a normal cast but
-`−actual` for a cancelled one (an interrupt loses time rather than
-gaining it). Together they are what make cast-time comparisons
-meaningful across players running different boon coverage.
+`−actual` for a cancelled one (an interrupt loses time rather than gaining
+it). Together they are what make cast-time comparisons meaningful across
+players running different boon coverage.
+
+Two rounding rules had to be exactly .NET's to make the aggregates exact,
+and both were found by measurement rather than reading:
+
+- `(int)Math.Round(ExpectedDuration / ratio)` is .NET's single-argument
+  `Math.Round`, which is **ties-to-even**. axilog originally used
+  ties-away and documented the divergence as negligible with zero measured
+  occurrences — true, but measured only on the smaller fixture. On the
+  10,878-cast reference capture midpoints do occur, and `timeSaved` came
+  out 1 ms high for 2 of 44 players. With a real ties-to-even round, the
+  per-cast `timeGained` delta against EI is **exactly 0** across all
+  10,878 local casts and all 1,222 fixture casts.
+- `quickness`'s own 3-decimal rounding is deliberately left on ties-away:
+  it measures a 0.000000 maximum delta over the same casts, so no midpoint
+  is reached, and changing it would be an unmeasured edit to an exact
+  surface.
+
+The whole-player aftercast aggregate EI calls `saved` / `timeSaved` /
+`wasted` / `timeWasted` is a switch over each cast's status accumulating
+its saved duration — both of which this pipeline already had and was
+discarding. It does **not** need the instant-cast pipeline, contrary to
+the assumption that parked it for two milestones. One filter matters:
+GW2EI iterates casts with `Time >= start`, which excludes backdated
+pre-log casts; without it, `saved` was exactly +1 for 11 of 44 players.
 
 Cast bucketing is by raw caster address, then folded to the account
-representative. The scope gap is documented rather than papered over:
-this reproduces the *animated*-cast pipeline only. EI's separate
-instant-cast pipeline (weapon swaps, procs, instant-cast mechanics)
-accounts for roughly 29% of a real log's cast entries and is not decoded.
+representative. The scope gap is documented rather than papered over: this
+reproduces the *animated*-cast pipeline only. EI's separate instant-cast
+pipeline (weapon swaps, procs, instant-cast mechanics) accounts for
+roughly 29% of a real log's cast entries and is not decoded.
 
-## Combat replay
+## Combat replay, in one paragraph
 
-axilog has two replay engines over the same events, because the two
+axilog runs two replay engines over the same events, because the two
 output shapes genuinely differ in grid bounds, units, interval semantics
-and rounding — reshaping one into the other would be wrong.
+and rounding. The **native** engine emits raw world-unit samples on a
+300 ms grid, only where real bracketing position data exists. The
+**EI-shape** engine reproduces EI's exported `combatReplayData` in map
+pixels on EI's own grid, down to the serialized decimal text — 100%
+bit-exact on 50,999 samples once both sides are narrowed to the `f32` EI
+writes.
 
-**Native replay** emits raw world-unit samples on a 300 ms grid, only
-where real bracketing position data exists, with half-open down/dead
-intervals. It drives the HTML report's animated replay tab.
-
-**EI-shape replay** reproduces EI's exported `combatReplayData` exactly.
-The pieces:
-
-- **Which events feed it.** Position points are dropped when all three
-  components are exactly zero, when any is NaN/infinite, or when the XY
-  length exceeds 40,000 (outside any real map). Facing and velocity
-  points are dropped only on NaN/infinity — a *zero velocity is kept*,
-  and is load-bearing below.
-- **The grid.** EI polls at a compile-time constant 300 ms over the whole
-  log, then trims per actor. For players the trim window spans down and
-  dead time, not just active segments — otherwise a player downed at *D*
-  and never revived would have their track truncated at *D*.
-- **Awareness.** First/last-aware are widened from **both** the source
-  and destination side of every combat item, so a player who is damaged
-  before their own first outgoing event has a correspondingly wider
-  window. Keying off `src_agent` alone understates it.
-- **The two subtleties that decide accuracy.** First, at each grid point
-  EI interpolates from the **previously polled point** when that is later
-  than the current raw sample — not from the raw sample itself. While a
-  bracketing segment is unchanged the two are algebraically identical,
-  but after a hold they are not: the track eases out of where it was
-  frozen instead of snapping back onto the raw segment. Second, the
-  **velocity-gated hold branch**: when the next raw position is more than
-  600 ms away *and* the most recent velocity sample is ~zero, EI refuses
-  to interpolate and freezes the actor in place. That is the "player
-  stood still, arcdps stopped emitting positions" case; interpolating
-  across it drags the icon smoothly toward somewhere it actually
-  teleported to. Getting both right is the entire difference between
-  99.77% and 100% agreement with EI's export.
-- **World → map pixel.** Positions are normalised into the map's
-  rectangle, scaled to an image whose maximum dimension is 750 px, with
-  the Y axis flipped, and rounded to 3 decimals — specifically C#'s
-  round-half-to-even, then narrowed to `f32`, because EI serialises
-  single-precision floats and the emitted decimal *text* has to match.
-- **Orientations** are `−round(degrees(atan2(y, x)), 3)`: the leading
-  minus because screen-space Y grows downward, and the negation applied
-  after rounding.
-
-Calibration against a real post-era capture: 50,999 of 50,999 position
-samples bit-exact once both sides are narrowed to `f32`, and the same for
-orientations; `start`, `end`, `dc`, `down` and `dead` exact for all 44
-joined players.
+The full treatment — the event filters, the polling grid, the
+`PlayerActor` trim override, awareness widening from both sides, the two
+`HandlePosition` subtleties, the five-map geometry table and the float
+discipline — is on the [combat replay](/axilog/combat-replay/) page.
 
 ## Known gaps
 
 Documented rather than faked — where axilog doesn't compute a field, the
-`ei-json` output omits it instead of emitting a plausible zero.
+`ei-json` output omits it instead of emitting a plausible zero. The full
+list, with the intentional divergences alongside, is on the
+[parity page](/axilog/parity/); the short version:
 
-- **Damage modifiers.** Trait/sigil/food/rune modifier attribution
-  (`damageModifiers`, `incomingDamageModifiers`) is not implemented; it
-  is the next planned milestone.
-- **`wvWMapData` objectives.** Only the three team-id fields are emitted.
-  EI additionally carries per-objective capture-ownership timelines for
-  every Camp/Tower/Keep — a whole event family axilog does not decode
-  yet.
-- **Skill names and icons.** `skillMap` is built from the log's *own*
-  skill table, scoped to the ids squad players actually touch. EI
-  supplements this with a bundled, GW2-API-backed skill database that
-  supplies disambiguated names, icon URLs and per-skill classifier flags
-  (`isInstantCast`, `isTraitProc`, and friends). Those are a genuinely
-  different data source, so names are spot-checked rather than
-  calibrated, and the flags that need the API are omitted. `canCrit` and
-  a narrower `isSwap` are computed from the id alone and match EI on
-  every overlapping id.
-- **Post-era boon calibration.** Post-rework boon, generation and support
-  extraction is implemented and era-gated, and verified by construction
-  against EI source plus synthetic era-equivalence tests — but not yet
-  calibrated against a real post-rework dps.report export.
+- **`wvWMapData` objectives** — only the three team-id fields. EI's
+  per-objective capture-ownership timelines are a whole event family
+  axilog does not decode yet, and the last whole EI feature surface still
+  missing.
+- **Instant casts** — ~29% of a real log's cast entries.
+- **Skill names and icons** — the log's own skill table is a genuinely
+  narrower data source than EI's bundled, API-backed database.
+- **Six damage-modifier ids**, each needing an engine feature axilog does
+  not have.
+- **Shield damage** is not decoded anywhere.
 
 ## See also
 
 - [axilog overview](/axilog/) — what it is, architecture, scope.
+- [Damage modifiers](/axilog/damage-modifiers/),
+  [buffs & boons](/axilog/buffs/), [combat replay](/axilog/combat-replay/)
+  — the three deep dives.
 - [Reading damage from logs](/guides/reading-damage/)
 - [Boons, buffs & uptime](/guides/boons-and-buffs/)
 - [WvW downs & deaths](/guides/wvw-downs-deaths/)
