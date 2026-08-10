@@ -22,9 +22,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AUTO_UPDATE_TOKEN }}
         run: |
+          set -euo pipefail
           open=$(gh pr list --state open --label auto-update --json number --jq 'length')
           echo "open=$open" >> "$GITHUB_OUTPUT"
-          [ "$open" != "0" ] && echo "auto-update PR already open; skipping" || true
+          if [ "$open" != "0" ]; then echo "auto-update PR already open; skipping"; fi
 
       - uses: actions/setup-node@v4
         if: steps.guard.outputs.open == '0'
@@ -58,8 +59,8 @@ jobs:
           set -euo pipefail
           slug="${VERSION:-$(date +%Y%m%d)}"
           branch="auto-update/${slug}"
-          git config user.name "arcdps-wiki auto-update"
-          git config user.email "project96@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
           git add data/ src/content/docs/reference/build-history.md
           git commit -m "chore: refresh DLL snapshots for arcdps ${VERSION:-new build}"
