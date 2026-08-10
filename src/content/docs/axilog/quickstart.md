@@ -1,14 +1,14 @@
 ---
 title: axilog quickstart
-description: Install the axilog CLI from a GitHub Release, tour parse's formats, views and opt-in flags, and run a first parse from the Node and Python SDKs — with real output from the project's committed WvW fixture.
+description: Install the axilog CLI from a GitHub Release, tour parse's formats, views and six opt-in flags, and run a first parse from the Node and Python SDKs — with real output from the project's committed WvW fixture.
 source: community
 ---
 
-Everything on this page was run against
-[axilog](/axilog/) 0.1.1 and the project's committed, anonymized WvW
-fixture (`fixtures/wvw-small.anon.zevtc` — 42 players, 49.3 s, Green
-Alpine Borderlands). The `:Anon<N>.<digits>` account names in the output
-are the fixture's own placeholders, not redactions.
+Everything on this page was run against [axilog](/axilog/) **0.3.1** and
+the project's committed, anonymized WvW fixture
+(`fixtures/wvw-small.anon.zevtc` — 42 players, 49.3 s, Green Alpine
+Borderlands). The `:Anon<N>.<digits>` account names in the output are the
+fixture's own placeholders, not redactions.
 
 ## CLI
 
@@ -23,7 +23,7 @@ published per release: `x86_64-unknown-linux-gnu`,
 Verify the checksum before extracting:
 
 ```sh
-VER=0.1.1
+VER=0.3.1
 TARGET=x86_64-unknown-linux-gnu
 BASE=https://github.com/darkharasho/axilog/releases/download/v$VER
 
@@ -31,17 +31,17 @@ curl -LO $BASE/axilog-$VER-$TARGET.tar.gz
 curl -LO $BASE/axilog-$VER-$TARGET.tar.gz.sha256
 
 sha256sum -c axilog-$VER-$TARGET.tar.gz.sha256
-# axilog-0.1.1-x86_64-unknown-linux-gnu.tar.gz: OK
+# axilog-0.3.1-x86_64-unknown-linux-gnu.tar.gz: OK
 
 tar xzf axilog-$VER-$TARGET.tar.gz
 ./axilog --version
-# axilog 0.1.1
+# axilog 0.3.1
 ```
 
-Each archive contains a single static-ish `axilog` binary — put it
-anywhere on your `PATH`. On Windows the archive is a `.zip` and the
-per-asset checksum file works the same way; the release's `SHA256SUMS`
-covers every asset at once if you'd rather verify them all together.
+Each archive contains a single `axilog` binary — put it anywhere on your
+`PATH`. On Windows the archive is a `.zip` and the per-asset checksum file
+works the same way; the release's `SHA256SUMS` covers every asset at once
+if you'd rather verify them all together.
 
 Building from source needs only a Rust toolchain:
 
@@ -86,6 +86,11 @@ axilog parse fight.zevtc --format html -o report.html
 axilog parse fight.zevtc --format ei-json -o fight.ei.json
 ```
 
+The `ei-json` writer **streams**: it serializes one player row at a time
+through a buffered writer rather than building the whole document in
+memory. On a real 583k-event log with every flag on, that is the
+difference between a 2.4 GiB peak and a 117 MiB one.
+
 ### Views
 
 `--view` changes the `table` format's columns and sort key. It is ignored
@@ -117,10 +122,13 @@ axilog parse fight.zevtc --format table --view boons
 
 ```text
 account                  profession   Might(avg)  Quick%   Alac%   Stab%   Prot%
-:Anon104.4848            Engineer          19.07    66.2     0.0    72.7    90.9
-:Anon105.4885            Ranger            10.15    31.3     0.0    79.5    67.6
-:Anon106.4922            Guardian          13.81    44.4     0.0    70.1    98.0
+:Anon104.4848            Engineer          19.43    66.2     0.0    72.7    90.9
+:Anon105.4885            Ranger            10.17    31.3     0.0    79.5    67.6
+:Anon106.4922            Guardian          13.82    44.5     0.0    70.1    98.0
 ```
+
+`--view healing` renders `-` per row rather than misleading zeros when the
+log carries no arcdps healing-extension data at all.
 
 Note that `--view rotation` does **not** require `--rotation`. The cast
 analysis always runs; the flag only controls whether per-cast detail is
@@ -128,8 +136,7 @@ serialized into JSON.
 
 ### Opt-in blocks
 
-Five flags add expensive-to-serialize blocks to the JSON outputs. They
-cost bytes, not parse time — the underlying analyses run either way.
+Six flags add expensive blocks to the JSON outputs.
 
 ```sh
 axilog parse fight.zevtc --skill-damage --timeseries --rotation -o full.json
@@ -142,13 +149,21 @@ axilog parse fight.zevtc --skill-damage --timeseries --rotation -o full.json
 | `--rotation` | Per-player cast lists grouped by skill id. |
 | `--replay` | Position tracks on a 300 ms grid, with down/dead intervals. Also feeds the `html` report's replay tab. |
 | `--missiles` | Projectile fired/hit/denied counts, per player and squad-wide. |
+| `--modifiers` | Per-player trait/rune/relic/sigil/food damage-modifier attribution, plus the descriptor map. |
 
-`--skill-damage`, `--timeseries` and `--rotation` also unlock their
-counterparts in `--format ei-json` (`totalDamageDist`, `damage1S`,
-`rotation[]`, and friends); `--replay` adds EI's own pixel-coordinate
-`combatReplayData`. `--missiles` has no EI equivalent and is native-only.
-See [always-on vs opt-in](/axilog/schema/#always-on-vs-opt-in) for what
-each one costs.
+Five of the six cost **bytes, not parse time** — the underlying analyses
+run either way. `--modifiers` is the exception: it gates the computation,
+not just the serialization, because the modifier engine is a separate pass
+over every damage event crossed with a ~200-definition catalog. On the
+committed fixture an `ei-json` run goes 0.074 s → 0.155 s with it on.
+
+`--skill-damage`, `--timeseries`, `--rotation` and `--modifiers` also
+unlock their counterparts in `--format ei-json` (`totalDamageDist`,
+`damage1S`, `rotation[]`, `damageModifiers`, and friends); `--replay` adds
+EI's own pixel-coordinate `combatReplayData`. `--missiles` has no EI
+equivalent and is native-only. See
+[always-on vs opt-in](/axilog/schema/#always-on-vs-opt-in) for what each
+one costs in bytes.
 
 ### Anonymize before sharing
 
@@ -159,7 +174,8 @@ axilog anonymize fight.zevtc fight.anon.zevtc
 ```
 
 Every player agent's character and account name becomes a deterministic
-`Anon<N>` / `:Anon<N>.<4 digits>` placeholder. Every other byte — the
+`Anon<N>` / `:Anon<N>.<4 digits>` placeholder, and guild GUIDs are zeroed
+(mirroring GW2EI's own `GuildEvent.Anonymize()`). Every other byte — the
 whole event stream, the skill table, NPC and gadget agents — is preserved
 exactly, so parsed metrics are identical before and after. Do this before
 filing a bug report, sharing a log publicly, or committing a fixture.
@@ -186,14 +202,17 @@ console.log(report.players.length, 'players,', squadDamage, 'squad damage')
 
 const top = [...report.players].sort((a, b) => b.damage.total - a.damage.total)[0]
 const quickness = top.boons.find((b) => b.name === 'Quickness')
-console.log(top.account, top.profession, top.damage.total, quickness.presence_pct)
+console.log(top.account, top.profession, top.damage.total, quickness.presence_pct.toFixed(1))
 ```
 
 ```text
 0.2 Green Alpine Borderlands 49285
 42 players, 2138414 squad damage
-:Anon104.4848 Engineer 205612 66.174292381049
+:Anon104.4848 Engineer 205612 66.2
 ```
+
+`presence_pct` is a full-precision `f64`; the table view rounds it to one
+decimal for display.
 
 Opt-in blocks go in a second argument, in **camelCase**:
 
@@ -211,15 +230,16 @@ console.log(p.skill_damage.outgoing[0])
 ```
 
 Note the asymmetry: the *options* object is camelCase (`skillDamage`),
-while the *report* keys are the schema's own snake_case
-(`skill_damage`). The options are a napi-generated JS surface; the report
-is the native JSON verbatim.
+while the *report* keys are the schema's own snake_case (`skill_damage`).
+The options are a napi-generated JS surface; the report is the native JSON
+verbatim.
 
-`ParseOptions` accepts `replay`, `skillDamage`, `timeseries`, `missiles`
-and `rotation`. The rest of the API is `parseBuffer(buf, opts?)` for
-already-read bytes, `parseFileEi(path, opts?)` for the EI-compat shape,
-and `anonymizeFile(inPath, outPath)`, which returns the number of player
-agents rewritten. Types ship with the package —
+`ParseOptions` accepts `replay`, `skillDamage`, `timeseries`, `missiles`,
+`rotation` and `modifiers`. The rest of the API is
+`parseBuffer(buf, opts?)` for already-read bytes, `parseFileEi(path,
+opts?)` for the EI-compat shape, and `anonymizeFile(inPath, outPath)`,
+which returns the number of player agents rewritten. Types ship with the
+package —
 [`types.d.ts`](https://github.com/darkharasho/axilog/blob/main/crates/axilog-node/types.d.ts)
 is the typed `Report`.
 
@@ -229,8 +249,8 @@ is the typed `Report`.
 pip install axilog
 ```
 
-Wheels are `cp39-abi3`, so one wheel per platform covers every CPython
-3.9 and newer. It is a PyO3 extension module over the same Rust core, and
+Wheels are `cp39-abi3`, so one wheel per platform covers every CPython 3.9
+and newer. It is a PyO3 extension module over the same Rust core, and
 `parse_file` returns plain dicts and lists.
 
 ```python
@@ -273,18 +293,42 @@ print(p["per_second"]["damage"][20:28])
 Those are cumulative running totals, one per second — not per-second
 deltas. The last entry equals that player's whole-fight `damage.total`.
 
+### Damage modifiers from Python
+
+`modifiers=True` fills `players[].damage_mods` and the top-level
+`damage_mod_map`:
+
+```python
+report = axilog.parse_file("./fight.zevtc", modifiers=True)
+
+p = next(p for p in report["players"] if p["account"] == ":Anon104.4848")
+mods = report["damage_mod_map"]
+for e in p["damage_mods"]["outgoing"][:3]:
+    print(mods[str(e["id"])]["name"], e["hit_count"], "/", e["total_hit_count"], e["damage_gain"])
+```
+
+```text
+Moving Bonus 118 / 226 5242.952
+Excessive Energy 98 / 226 5078.0
+Relic of the Eagle 64 / 226 7080.636
+```
+
+`damage_gain` is the modifier's share of the *observed* damage, which
+already contains the bonus — see
+[the gain formula](/axilog/damage-modifiers/#why-g100g-and-not-g100).
+
 For the EI-compat shape, `parse_file_ei` takes the same flags as
 keyword-only arguments:
 
 ```python
 ei = axilog.parse_file_ei("./fight.zevtc")
 print(ei["fightName"], ei["durationMS"], len(ei["players"]))
-print(ei["players"][0]["dpsAll"][0])
+print(ei["players"][0]["account"], ei["players"][0]["dpsAll"][0]["damage"])
 ```
 
 ```text
 Detailed WvW - Green Alpine Borderlands 49285 42
-{'damage': 205612, 'dps': 4172}
+:Anon104.4848 205612
 ```
 
 The rest of the API is `parse_bytes(data, ...)` and
@@ -296,8 +340,10 @@ arcdps log. Types ship as
 
 ## See also
 
-- [Output schema](/axilog/schema/) — every block in the native report,
-  and the EI-compat surface.
+- [Output schema](/axilog/schema/) — every block in the native report, and
+  the EI-compat surface.
 - [Calculation methodology](/axilog/methodology/) — how the numbers above
   are derived.
+- [Damage modifiers](/axilog/damage-modifiers/) — what `--modifiers`
+  actually computes.
 - [axilog overview](/axilog/) — architecture, scope and differentiators.
