@@ -5,9 +5,26 @@
 const diffLists = (before, after) => {
   const b = new Set(before);
   const a = new Set(after);
+  // Deduplicate outputs while preserving first-seen order
+  const seen = new Set();
+  const addedDedup = [];
+  for (const x of after) {
+    if (!b.has(x) && !seen.has(x)) {
+      addedDedup.push(x);
+      seen.add(x);
+    }
+  }
+  seen.clear();
+  const removedDedup = [];
+  for (const x of before) {
+    if (!a.has(x) && !seen.has(x)) {
+      removedDedup.push(x);
+      seen.add(x);
+    }
+  }
   return {
-    added: after.filter((x) => !b.has(x)),
-    removed: before.filter((x) => !a.has(x)),
+    added: addedDedup,
+    removed: removedDedup,
   };
 };
 

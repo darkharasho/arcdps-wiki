@@ -33,4 +33,24 @@ describe('diffSnapshots', () => {
     });
     expect(d).toEqual({ exportsAdded: [], exportsRemoved: [], uiStringsAdded: [], uiStringsRemoved: [] });
   });
+
+  it('deduplicates strings appearing in multiple UI pools', () => {
+    const d = diffSnapshots({
+      oldExports: { exports: [] }, newExports: { exports: [] },
+      // "tooltip" appears in both elementIds and uiText in the new snapshot
+      oldUi: ui(), newUi: ui({ elementIds: ['tooltip'], uiText: ['tooltip'] }),
+    });
+    // Should appear exactly once in uiStringsAdded, not twice
+    expect(d.uiStringsAdded).toEqual(['tooltip']);
+    expect(d.uiStringsRemoved).toEqual([]);
+  });
+
+  it('asserts all UI fields are empty when inputs are all empty', () => {
+    const d = diffSnapshots({
+      oldExports: { exports: [] }, newExports: { exports: [] },
+      oldUi: ui(), newUi: ui(),
+    });
+    expect(d.uiStringsAdded).toEqual([]);
+    expect(d.uiStringsRemoved).toEqual([]);
+  });
 });
