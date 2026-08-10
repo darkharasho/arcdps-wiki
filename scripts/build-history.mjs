@@ -13,16 +13,30 @@ import { renderBuildHistoryPage } from './lib/render-build-history.mjs';
 
 const read = (url) => JSON.parse(readFileSync(url, 'utf8'));
 const gitShow = (repoPath) => {
+  let raw;
   try {
-    return JSON.parse(execFileSync('git', ['show', `HEAD:${repoPath}`], {
+    raw = execFileSync('git', ['show', `HEAD:${repoPath}`], {
       encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
-    }));
+    });
   } catch {
     return null; // bootstrap: not in HEAD yet
   }
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`corrupt committed snapshot at HEAD:${repoPath}: ${err.message}`);
+  }
 };
 
-const build = read(new URL('../data/arcdps-build.json', import.meta.url));
+let build;
+try {
+  build = read(new URL('../data/arcdps-build.json', import.meta.url));
+} catch (err) {
+  if (err.code === 'ENOENT') {
+    throw new Error('arcdps-build.json missing; run `npm run check-build` or `npm run update` first');
+  }
+  throw err;
+}
 const newExports = read(new URL('../data/arcdps-exports.json', import.meta.url));
 const newUi = read(new URL('../data/arcdps-ui-strings.json', import.meta.url));
 const oldExports = gitShow('data/arcdps-exports.json') ?? { exports: [] };
