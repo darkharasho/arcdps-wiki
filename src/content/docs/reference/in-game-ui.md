@@ -1,5 +1,5 @@
 ---
-title: In-game UI reference (extracted)
+title: In-game UI reference
 description: An inventory of arcdps' in-game windows, stat columns, and options — extracted from the DLL's string literals and awaiting in-game confirmation.
 source: community
 ---

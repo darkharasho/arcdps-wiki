@@ -50,6 +50,7 @@ export default defineConfig({
             { label: 'Combat callback', link: '/reference/extension-api/combat-callback/' },
             { label: 'arcdps exports', link: '/reference/extension-api/arcdps-exports/' },
             { label: 'Extension registry', link: '/reference/extension-api/extension-registry/' },
+            { label: 'Extension Capabilities', link: '/reference/extension-api/capabilities/' },
           ],
         },
         {
@@ -81,7 +82,7 @@ export default defineConfig({
             { label: 'Encounter IDs', link: '/reference/encounter-ids/' },
           ],
         },
-        { label: 'In-game UI (extracted)', link: '/reference/in-game-ui/' },
+        { label: 'In-game UI', link: '/reference/in-game-ui/' },
         { label: 'Unofficial Extras', link: '/reference/unofficial-extras/' },
         { label: 'API revision history', link: '/reference/api-history/' },
         { label: 'Contributing', link: '/contributing/' },
