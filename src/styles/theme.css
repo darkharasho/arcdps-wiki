@@ -150,10 +150,29 @@ starlight-menu-button,
   font-size: 0.875em;
 }
 
+/* ---- Content measure ----
+   Starlight's default (45rem) is tight for the reference tables — the
+   struct pages have a mono "C type" column where tokens like `uint64_t`
+   wrap into "uint t64_ t". Widen the reading column a little to give
+   those tables room. */
+:root {
+  --sl-content-width: 52rem;
+}
+
 /* ---- Tables (export tables, struct fields) ---- */
 .sl-markdown-content table {
   font-family: var(--__sl-font-mono);
   font-size: var(--sl-text-sm);
+}
+
+/* Don't break inside a mono token mid-word; if a table is genuinely too
+   wide for the viewport, let it scroll rather than garble the cells. */
+.sl-markdown-content table :is(td, th) {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+.sl-markdown-content table code {
+  white-space: nowrap;
 }
 
 .sl-markdown-content thead th {
