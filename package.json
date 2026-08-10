@@ -9,6 +9,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "snapshot-exports": "node scripts/snapshot-exports.mjs",
+    "snapshot-ui-strings": "node scripts/snapshot-ui-strings.mjs",
     "test": "vitest run --pool=forks --poolOptions.forks.maxForks=2",
     "fonts:fetch": "node scripts/fetch-fonts.mjs"
   },
