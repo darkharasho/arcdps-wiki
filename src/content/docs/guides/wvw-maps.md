@@ -37,6 +37,10 @@ The WvW set (names and ids verified against that endpoint, fetched
 | 899 | Obsidian Sanctum | Jumping-puzzle map |
 | 1315 | Armistice Bastion | Pass-holder lounge |
 
+This table is also served as JSON at
+[`/api/wvw/maps.json`](/reference/data-api/), so tools can fetch the
+id → name/role mapping instead of hardcoding it.
+
 Note the two Alpine Borderlands share a name but not an id — 95 is
 always the green team's home and 96 the blue team's, while red gets
 the Desert Borderlands (1099). Which *world* owns each color changes

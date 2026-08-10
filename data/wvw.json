@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "canonical": "https://arcdps.axi.link/api/",
+    "docs": "https://arcdps.axi.link/reference/data-api/",
+    "generated": "2026-08-10"
+  },
+  "teams": {
+    "source": "community (WvW-Fight-Analysis addon defaults)",
+    "verified": "2026-08-10",
+    "disclaimer": "Team ids are unofficial community knowledge and change over time (e.g. around World Restructuring). When a log contains a CBTS_WVWTEAMS (74) event, prefer it over this table. Unknown ids should be treated as 'unknown team', not an error.",
+    "colors": {
+      "red": [697, 699, 705, 706, 707, 882, 885, 886, 2520],
+      "blue": [432, 433, 1277, 1281, 1282, 1989, 1996, 2304],
+      "green": [39, 2739, 2741, 2752, 2763, 2767]
+    }
+  },
+  "maps": {
+    "source": "official GW2 API (v2/maps)",
+    "verified": "2026-08-09",
+    "entries": {
+      "38": { "name": "Eternal Battlegrounds", "role": "center" },
+      "95": { "name": "Alpine Borderlands", "role": "green-home" },
+      "96": { "name": "Alpine Borderlands", "role": "blue-home" },
+      "1099": { "name": "Desert Borderlands", "role": "red-home" },
+      "968": { "name": "Edge of the Mists", "role": "overflow" },
+      "899": { "name": "Obsidian Sanctum", "role": "jump-puzzle" },
+      "1315": { "name": "Armistice Bastion", "role": "lounge" }
+    }
+  }
+}

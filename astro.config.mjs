@@ -82,6 +82,7 @@ export default defineConfig({
             { label: 'Encounter IDs', link: '/reference/encounter-ids/' },
           ],
         },
+        { label: 'Data API', link: '/reference/data-api/' },
         { label: 'In-game UI', link: '/reference/in-game-ui/' },
         { label: 'Unofficial Extras', link: '/reference/unofficial-extras/' },
         { label: 'API revision history', link: '/reference/api-history/' },

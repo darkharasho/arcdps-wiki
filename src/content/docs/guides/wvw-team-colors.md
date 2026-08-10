@@ -74,6 +74,12 @@ error.
 The observed values from our test logs fit this table: the id-433
 agents were blue, and the id-2767 despawns were green.
 
+You don't have to copy this table into your own project — it's served
+as machine-readable JSON at
+[`/api/wvw/teams.json`](/reference/data-api/) (with a flat
+`byTeamId` reverse index), so you can fetch one canonical copy instead
+of maintaining the mapping yourself.
+
 Remember colors are **per-matchup sides**, not identities: the same
 world can be red one matchup and green the next. If you're aggregating
 across logs, aggregate by color *within* each log, never by color

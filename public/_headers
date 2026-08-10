@@ -1,0 +1,7 @@
+# Cloudflare Pages custom headers.
+# The developer data API under /api/* is meant to be fetched cross-origin
+# by extensions and tools, so allow any origin and cache at the edge.
+/api/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Cache-Control: public, max-age=3600
