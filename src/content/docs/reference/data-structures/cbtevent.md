@@ -246,6 +246,60 @@ official notes): for strike events, `is_flanking` values lie "in a
 range of 1 to 135 degrees where 135 is rear" — i.e. it is an angle
 indicator, not a plain boolean.
 
+## Reading a cbtevent in practice
+
+Because every field but `time` is reinterpreted per event type, the
+first thing any consumer does is dispatch on `is_statechange`. If it is
+nonzero the event is a state-change; interpret its fields per the
+[statechange payloads](/reference/enums/statechange-payloads/) page. If
+it is zero the event is a `CBTS_COMBAT` event, and you branch on `buff`
+to pick which field carries the damage:
+
+```c
+void handle(const cbtevent* ev) {
+    if (ev->is_statechange) {
+        /* state-change event: fields mean what the payloads page
+           says for this cbtstatechange value. */
+        dispatch_statechange(ev);
+        return;
+    }
+
+    /* is_statechange == 0 -> CBTS_COMBAT. */
+    if (ev->buff == 0) {
+        /* direct strike: value is the combined shield+health damage.
+           Only these results actually connected. */
+        if (ev->result == CBTR_STRIKE_DAMAGENORMAL ||
+            ev->result == CBTR_STRIKE_DAMAGECRIT   ||
+            ev->result == CBTR_STRIKE_DAMAGEGLANCE) {
+            credit_strike(ev->src_agent, ev->value);
+        }
+        /* other results (block/evade/absorb/CC/etc.) are not
+           applied health damage — see the cbtresult table. */
+    } else if (ev->buff == 1 && ev->value == 0) {
+        /* condition/DoT tick: damage is in buff_dmg. buff == 1 with
+           value != 0 is a buff *application* (duration in value),
+           not damage. */
+        credit_buff_dmg(ev->src_agent, ev->buff_dmg);
+    }
+}
+```
+
+Two fields worth calling out are `is_activation` and `is_buffremove`.
+Current builds deliver skill activation and buff removal as their own
+state-change types (`CBTS_ANIMATIONSTART`/`CBTS_ANIMATIONSTOP` and
+`CBTS_BUFFREMOVE_*` — the buff-remove statechanges were added in the
+may-2026 build), so they arrive on the `is_statechange != 0` path above.
+Older logs may instead carry these as `CBTS_COMBAT` events with the
+`is_activation`/`is_buffremove` fields set — so if you parse historical
+logs, guard those fields in the combat branch too (as the
+[combat-callback recipe](/reference/extension-api/combat-callback/#recipe-a-minimal-combat-handler)
+does).
+
+See the [`cbtresult` table](/reference/enums/#cbtresult-combat-result)
+for the full result codes, and
+[Reading damage from logs](/guides/reading-damage/) for the complete
+summation rules (barrier, minions, and which results to exclude).
+
 ## See also
 
 - [Statechange payloads](/reference/enums/statechange-payloads/) —

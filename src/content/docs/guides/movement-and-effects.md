@@ -93,6 +93,43 @@ Vicious Shot (137), Long Range Shot (102), all named in the skill
 table. The remove event carries a friendly-fire damage total in
 `value`.
 
+## Recipe: building a position track
+
+To reconstruct where everyone stood, scan the event stream for
+`CBTS_POSITION` (19) events and read the `float[3]` x/y/z overlaid on
+`dst_agent` ([payload](/reference/enums/statechange-payloads/#movement-cbts_position-19--cbts_velocity-20--cbts_facing-21)),
+keying by `src_agent`. Accumulate one track per agent — at the observed
+~300 ms sampling that's a dense path ready to plot.
+
+The coordinates are 12 bytes of `float[3]` reinterpreted starting at the
+`dst_agent` field. In the 64-byte
+[`cbtevent`](/reference/data-structures/cbtevent/) `dst_agent` sits at
+byte offset 16, so the three floats occupy bytes 16–27 — i.e. they spill
+past `dst_agent` (8 bytes) into the `value` field. Read them from the raw
+record rather than the parsed `dst_agent` integer:
+
+```python
+import struct
+from collections import defaultdict
+
+CBTS_POSITION = 19
+tracks = defaultdict(list)  # src_agent -> [(time, x, y, z), ...]
+
+for rec in records:  # each rec is a raw 64-byte cbtevent; see /guides/parsing-logs/
+    if rec[56] != CBTS_POSITION:          # is_statechange is byte 56
+        continue
+    time, src_agent = struct.unpack_from("<QQ", rec, 0)  # bytes 0-15
+    x, y, z = struct.unpack_from("<3f", rec, 16)          # float[3] at dst_agent
+    tracks[src_agent].append((time, x, y, z))
+
+for agent, samples in tracks.items():
+    samples.sort()  # by time
+```
+
+See [parsing EVTC logs](/guides/parsing-logs/) for reading the raw event
+stream. These events are evtc-only, so this runs offline against a
+`.zevtc`, not a live extension.
+
 ## What this enables
 
 - **Replay maps**: positions at 300 ms resolution for both sides,

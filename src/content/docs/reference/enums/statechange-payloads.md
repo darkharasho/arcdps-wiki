@@ -19,6 +19,41 @@ Everything here is transcribed from the inline comments of
 event. Casts like `(float*)&dst_agent` mean the field's bytes are
 reinterpreted, not converted.
 
+## Dispatching on statechange in practice
+
+Because [`cbtevent`](/reference/data-structures/cbtevent/) reinterprets
+its fields per event type, a parser's first job is to branch on
+`is_statechange` and hand the event to the right reader. A value of `0`
+(`CBTS_COMBAT`) is a real combat event and every other value is a state
+change with its own field layout, so the usual shape is a fast-path
+check followed by a switch:
+
+```c
+if (ev->is_statechange == CBTS_COMBAT) {     // 0
+    handle_combat(ev);                       // strike/buff damage, per §CBTS_COMBAT
+    return;
+}
+
+switch (ev->is_statechange) {
+case CBTS_TEAMCHANGE:  // 22: dst_agent = new team id, value = old team id
+    on_team_change(ev->src_agent, ev->dst_agent);
+    break;
+case CBTS_BUFFAPPLY:   // 69: src applies skillid to dst for value ms
+    on_buff_apply(ev->src_agent, ev->dst_agent, ev->skillid, ev->value);
+    break;
+case CBTS_POSITION:    // 19: (float*)&dst_agent is float[3] x/y/z
+    on_position(ev->src_agent, (float*)&ev->dst_agent);
+    break;
+default:
+    break; // unhandled state change
+}
+```
+
+Each field read above matches that event's row on this page — reading
+`dst_agent` as a team id for `CBTS_TEAMCHANGE` but as a packed
+`float[3]` for `CBTS_POSITION` is exactly why the dispatch has to come
+first.
+
 Each event also carries two availability notes from the source:
 
 - **evtc** — whether the event is written to `.evtc` log files, and

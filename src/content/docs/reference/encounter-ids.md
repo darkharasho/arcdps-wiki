@@ -143,6 +143,34 @@ the arcdps logging options (**binary evidence**, build
 metrics window tooltip", and a blacklist mode — "Log all instance maps
 except those on the map ID list").
 
+## Detecting the encounter in your parser
+
+In practice you rarely need to match these ids at all: the boss species
+id is written directly into the [EVTC header](/reference/evtc-format/#header-16-bytes)
+at byte 13 (a `uint16_t`). Read it first. The two special values above
+short-circuit the rest — `1` means a WvW log and `2` means a map log; any
+other value is the boss species id, which you can look up in the
+log-starting bosses table.
+
+```python
+import struct
+
+boss_id, = struct.unpack_from("<H", header, 13)  # bytes 13-14 of the 16-byte header
+if boss_id == 1:
+    kind = "wvw"
+elif boss_id == 2:
+    kind = "map"
+else:
+    kind = BOSSES.get(boss_id, "unknown")  # BOSSES keyed by species id
+```
+
+Fall back to the event stream only if the header id is missing or you
+want to confirm it: the log's boss is "the first damage event on boss",
+so scan `CBTS_COMBAT` events in order and match the first target species
+id against the log-starting bosses list above. See
+[parsing EVTC logs](/guides/parsing-logs/) for reading the header and
+walking the event stream.
+
 ## See also
 
 - [EVTC log format](/reference/evtc-format/) — where the boss species

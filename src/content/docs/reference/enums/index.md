@@ -16,6 +16,45 @@ Every enum here is 0-indexed and sequential (each enumerator's value is
 the previous value + 1) **unless otherwise noted** — `n_customskill` is
 the one exception, explicitly starting at `23275`.
 
+## Using these enums in practice
+
+These tables aren't just value lookups — they drive the branching in any
+[`cbtevent`](/reference/data-structures/cbtevent/) consumer. A couple of
+worked examples that combine facts from the tables below.
+
+**Counting landed strike damage with `cbtresult`.** On a `CBTS_COMBAT`
+event the `result` field is a `cbtresult`. Only values `0`–`2`
+(`CBTR_STRIKE_DAMAGENORMAL`, `CBTR_STRIKE_DAMAGECRIT`,
+`CBTR_STRIKE_DAMAGEGLANCE`) are actual strike hits carrying damage;
+`8` (`CBTR_KILLINGBLOW`) and `9` (`CBTR_DOWNED`) are outcome **markers**
+— "target was killed / downed by skill" — not damage rows, so summing
+their `value` would double-count. Crit rate is just the share of the
+strike hits whose `result` is `1`:
+
+```c
+if (ev->result <= CBTR_STRIKE_DAMAGEGLANCE) { // 0,1,2 only
+    total_strike += ev->value;                // combined shield+health strike damage
+    if (ev->result == CBTR_STRIKE_DAMAGECRIT) // 1
+        crit_strikes++;
+}
+```
+
+**Splitting friend from foe with `iff`.** The `iff` field is `0`
+`IFF_FRIEND`, `1` `IFF_FOE`, `2` `IFF_UNKNOWN`. Route outgoing damage
+you deal to a foe versus incoming damage separately, and don't fold
+`IFF_UNKNOWN` into either bucket:
+
+```c
+if (ev->iff == IFF_FOE)         // 1
+    dealt_to_foes += ev->value;
+else if (ev->iff == IFF_FRIEND) // 0
+    ; // friendly-fire / support target
+// iff == IFF_UNKNOWN (2): leave out of both tallies
+```
+
+See the [guide to reading damage](/guides/reading-damage/) for the full
+event walk-through.
+
 ## `cbtstatechange` (the `is_statechange` field)
 
 This is the event-type discriminant on [`cbtevent`](/reference/data-structures/cbtevent/)

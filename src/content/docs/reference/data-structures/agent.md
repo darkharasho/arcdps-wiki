@@ -117,6 +117,43 @@ const ag = koffi.struct("ag", {
 });
 ```
 
+## Classifying an agent in practice
+
+Whether an agent is a player, an NPC, or a gadget is decided by the same
+rule the EVTC format documents verbatim for the agent table (there the
+fields are named `evtc_agent.is_elite` and `evtc_agent.prof`; on `ag`
+the same two concepts are `elite` and `prof`, and the
+[enum reference](/reference/enums/#profession-ids-community) records
+that `elite == 0xFFFFFFFF` marks a non-player agent for both). See the
+[EVTC agent classification rules](/reference/evtc-format/#agent-table)
+for the source text.
+
+```c
+enum agent_kind { AGENT_PLAYER, AGENT_NPC, AGENT_GADGET };
+
+enum agent_kind classify(const ag* a, uint16_t* out_id) {
+    if (a->elite == 0xFFFFFFFF) {
+        if ((a->prof >> 16) == 0xFFFF) {
+            /* gadget: pseudo id in the low half of prof (volatile —
+               may collide with npc ids, treat separately). */
+            *out_id = (uint16_t)(a->prof & 0xFFFF);
+            return AGENT_GADGET;
+        }
+        /* npc: species id in the low half of prof (reliable id). */
+        *out_id = (uint16_t)(a->prof & 0xFFFF);
+        return AGENT_NPC;
+    }
+    /* player: prof is the profession id, elite is the elite spec id. */
+    return AGENT_PLAYER;
+}
+```
+
+For players, map `prof` through the
+[profession id table](/reference/enums/#profession-ids-community) and
+`elite` through the game's specialization ids. The WvW allies/enemies
+guide applies exactly this split — see
+[Telling allies from enemies in WvW](/guides/wvw-allies-and-enemies/).
+
 ## See also
 
 - [Combat callback](/reference/extension-api/combat-callback/) — how
