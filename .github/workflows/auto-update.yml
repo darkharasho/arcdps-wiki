@@ -1,0 +1,70 @@
+# .github/workflows/auto-update.yml
+# Daily arcdps build check. On a new build: refresh snapshots + history and
+# open an auto-merging PR. Uses AUTO_UPDATE_TOKEN (fine-grained PAT), not
+# GITHUB_TOKEN, because PRs created with GITHUB_TOKEN never trigger CI and
+# auto-merge would wait forever.
+name: Auto-update
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  auto-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTO_UPDATE_TOKEN }}
+
+      - name: Skip if an auto-update PR is already open
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_UPDATE_TOKEN }}
+        run: |
+          open=$(gh pr list --state open --label auto-update --json number --jq 'length')
+          echo "open=$open" >> "$GITHUB_OUTPUT"
+          [ "$open" != "0" ] && echo "auto-update PR already open; skipping" || true
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.open == '0'
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - run: npm ci
+        if: steps.guard.outputs.open == '0'
+
+      - name: Check for a new build
+        id: check
+        if: steps.guard.outputs.open == '0'
+        run: npm run check-build
+
+      - name: Refresh snapshots and build history
+        if: steps.guard.outputs.open == '0' && steps.check.outputs.changed == 'true'
+        env:
+          ARCDPS_DLL: ${{ steps.check.outputs.dll_path }}
+        run: |
+          npm run snapshot-exports
+          npm run snapshot-ui-strings
+          npm run build-history
+
+      - name: Open auto-merging PR
+        if: steps.guard.outputs.open == '0' && steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_UPDATE_TOKEN }}
+          VERSION: ${{ steps.check.outputs.dll_version }}
+        run: |
+          set -euo pipefail
+          slug="${VERSION:-$(date +%Y%m%d)}"
+          branch="auto-update/${slug}"
+          git config user.name "arcdps-wiki auto-update"
+          git config user.email "project96@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add data/ src/content/docs/reference/build-history.md
+          git commit -m "chore: refresh DLL snapshots for arcdps ${VERSION:-new build}"
+          git push -u origin "$branch"
+          gh pr create --label auto-update \
+            --title "Auto-update: arcdps ${VERSION:-new build}" \
+            --body "Automated snapshot + build-history refresh. Green CI: merges itself. Red CI: the export-drift output below names the documented entries a human needs to fix; this PR is the work item."
+          gh pr merge --auto --squash "$branch"
