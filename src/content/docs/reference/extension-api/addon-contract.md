@@ -89,3 +89,57 @@ your module returning an initialization function, arcdps calling that
 function to receive an `arcdps_exports` table, and the corresponding
 teardown via `get_release_addr` — see
 [Getting Started: Required exports](/getting-started/#required-exports).
+
+### Minimal loadable extension
+
+The smallest module arcdps will accept, wiring the whole entry path in
+one place (field-by-field detail of `arcdps_exports` is on the
+[Getting Started](/getting-started/#required-exports) page):
+
+```c
+static arcdps_exports arc_exports;      // must outlive init() — file/static scope
+static HMODULE        self_dll;         // this module (from DllMain)
+static HMODULE        arc_dll;          // arcdps, for GetProcAddress of e5..e10
+
+// arcdps calls this; it must return your init function.
+// Signature is exact — note the last arg is imguiversion, NOT a d3d version
+// (treating it as one breaks silently). See Getting Started.
+extern "C" __declspec(dllexport)
+void* get_init_addr(char* arcversionstr, void* imguicontext, void* id3dptr,
+                    HANDLE arcdll, void* mallocfn, void* freefn,
+                    uint32_t imguiversion) {
+    ImGui::SetCurrentContext((ImGuiContext*)imguicontext);        // join arc's context
+    ImGui::SetAllocatorFunctions((ImGuiMemAllocFunc)mallocfn,     // skipping this
+                                 (ImGuiMemFreeFunc)freefn);        // cross-heap crashes
+    arc_dll = (HMODULE)arcdll;   // cache to GetProcAddress e5..e10 (see Capabilities)
+    return (void*)mod_init;
+}
+
+// arcdps calls this on unload; return your release function (or 0).
+extern "C" __declspec(dllexport)
+void* get_release_addr() { return mod_release; }
+
+// Your init: hand arcdps the exports table.
+static arcdps_exports* mod_init() {
+    arc_exports.size      = sizeof(arcdps_exports);
+    arc_exports.sig       = 0x4D594558;              // your unique sig
+    arc_exports.imguivers = IMGUI_VERSION_NUM;       // must match arc's build
+    arc_exports.out_name  = "my extension";
+    arc_exports.out_build = "1.0";
+    arc_exports.combat    = combat;                  // optional callbacks
+    arc_exports.imgui     = imgui;                   // set only what you use
+    return &arc_exports;
+}
+
+static uintptr_t mod_release() { return 0; }
+
+BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
+    if (reason == DLL_PROCESS_ATTACH) self_dll = h;
+    return TRUE;
+}
+```
+
+The filename must contain `arcdps` (e.g. `arcdps_myext.dll`) for arcdps
+to scan and load it. From here, the leverage points — drawing UI,
+reading arc's state, injecting events — are on the
+[Extension Capabilities](/reference/extension-api/capabilities/) page.

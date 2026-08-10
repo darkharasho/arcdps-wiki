@@ -34,6 +34,44 @@ void combat_local(cbtevent* ev, ag* src, ag* dst, char* skillname,
   assigned, the **first event will always have `id == 2`**.
 - **`revision`** — the `cbtevent` type revision; "will most likely be 1".
 
+## Recipe: a minimal combat handler
+
+Nearly every combat callback follows the same shape — bail on the
+non-combat cases, then filter to the events you care about. This one
+tallies outgoing strike damage per source agent (the core of a DPS
+meter):
+
+```c
+uintptr_t combat(cbtevent* ev, ag* src, ag* dst,
+                 const char* skillname, uint64_t id, uint64_t revision) {
+    if (!ev) {
+        // agent add/remove/track — not a combat event. See "ev == null".
+        return 0;
+    }
+    if (ev->is_statechange) return 0;   // state changes aren't hits
+    if (ev->is_activation)  return 0;   // skill cast start/stop, not damage
+    if (ev->is_buffremove)  return 0;   // buff bookkeeping
+
+    if (ev->buff == 0 &&
+        (ev->result == CBTR_STRIKE_DAMAGENORMAL ||
+         ev->result == CBTR_STRIKE_DAMAGECRIT  ||
+         ev->result == CBTR_STRIKE_DAMAGEGLANCE)) {
+        // strike damage: ev->value. src may be a minion — credit its master.
+        uint64_t attacker = src->prof ? src->id : 0;
+        accumulate_damage(attacker, ev->value);          // your state
+    } else if (ev->buff == 1 && ev->value == 0) {
+        accumulate_damage(src->id, ev->buff_dmg);        // condition tick
+    }
+    return 0;
+}
+```
+
+The strike-vs-buff split and the `result` filter are the same logic used
+when [reading damage from a log](/guides/reading-damage/) — the realtime
+and evtc paths carry the same `cbtevent`, so a handler you write here
+works almost unchanged against parsed logs. What differs is *delivery*
+(delay and filtering), covered next.
+
 ## `combat` (area) vs `combat_local`
 
 | | `combat` | `combat_local` |
