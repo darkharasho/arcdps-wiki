@@ -63,8 +63,7 @@ present on ubuntu runners.
 
 - Machine-owned data file `data/build-history.json`: newest-first
   array of `{ dllVersion, md5, observedAt, exportsAdded[],
-  exportsRemoved[], uiStringsAdded[], uiStringsRemoved[],
-  uiStringsChanged[] }`.
+  exportsRemoved[], uiStringsAdded[], uiStringsRemoved[] }`.
 - The script diffs the pre-refresh snapshots against the post-refresh
   ones and prepends one entry per run. The pre-refresh state is read
   from git (`git show HEAD:data/arcdps-exports.json`, same for UI
