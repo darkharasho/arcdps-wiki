@@ -7,7 +7,7 @@ export const collections = {
     loader: docsLoader(),
     schema: docsSchema({
       extend: z.object({
-        source: z.enum(['dll-exports', 'official-docs', 'community']).optional(),
+        source: z.enum(['dll-exports', 'official-docs', 'community', 'generated']).optional(),
       }),
     }),
   }),

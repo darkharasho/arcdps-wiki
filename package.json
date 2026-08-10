@@ -12,6 +12,7 @@
     "snapshot-exports": "node scripts/snapshot-exports.mjs",
     "snapshot-ui-strings": "node scripts/snapshot-ui-strings.mjs",
     "check-build": "node scripts/check-build.mjs",
+    "build-history": "node scripts/build-history.mjs",
     "test": "vitest run --pool=forks --poolOptions.forks.maxForks=2",
     "fonts:fetch": "node scripts/fetch-fonts.mjs"
   },
