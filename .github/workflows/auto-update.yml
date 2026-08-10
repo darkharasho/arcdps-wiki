@@ -9,9 +9,14 @@ on:
     - cron: '17 6 * * *'
   workflow_dispatch:
 
+permissions: {}
+
+concurrency: auto-update
+
 jobs:
   auto-update:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,7 +69,7 @@ jobs:
           git checkout -b "$branch"
           git add data/ src/content/docs/reference/build-history.md
           git commit -m "chore: refresh DLL snapshots for arcdps ${VERSION:-new build}"
-          git push -u origin "$branch"
+          git push -u --force origin "$branch"
           gh pr create --label auto-update \
             --title "Auto-update: arcdps ${VERSION:-new build}" \
             --body "Automated snapshot + build-history refresh. Green CI: merges itself. Red CI: the export-drift output below names the documented entries a human needs to fix; this PR is the work item."
