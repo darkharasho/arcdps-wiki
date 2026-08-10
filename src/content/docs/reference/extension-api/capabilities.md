@@ -156,14 +156,36 @@ documents these as **undocumented** pending confirmation against a
 reference host; treat the struct layout and calling convention as
 unverified.
 
-## Open lead: `window_context`
+## Not a capability: `window_context` (investigated)
 
-The DLL contains the symbol **`window_context`**, which appears on no
-other wiki page and is **not** in arc's export table — placing it with
-the extension-imported symbols (`get_init_addr` and friends) or an
-internal hook. Its role is **undocumented and unconfirmed**; it's
-flagged here as a genuine dark spot worth running down against a working
-extension or the disassembly, not a capability you can rely on yet.
+`window_context` is a string in the DLL that sits alphabetically next to
+the extension-imported updater symbols (`get_init_addr` and friends),
+which made it look like it might be another symbol arc looks up in your
+module. **Disassembly says otherwise — it is internal, not an extension
+hook.** Recorded here so the lead is closed rather than left dangling.
+
+What the binary shows (build 1.2026.718.905, binary evidence):
+
+- The string (`.rdata`, `0x1801189c8`) is referenced by exactly **one**
+  `lea` in the whole binary, at `0x180076a52`, inside a helper at
+  `0x180076a40`.
+- That reference is a **null-default**: `cmovne r14, rcx` — the helper
+  takes a name pointer and falls back to the literal `"window_context"`
+  only when the caller passes null. So it's a *default identifier*, not
+  a name arc imports from you.
+- It is **not** passed to `GetProcAddress`, **not** in the export table,
+  and its address is **not** stored in any pointer/dispatch table (a raw
+  qword-pointer scan finds zero occurrences) — unlike the real
+  extension-imported symbols, which are `lea`'d in the loader/updater
+  cluster around `0x18002f800`.
+- The helper has **8 internal callers** and manipulates a name-keyed id
+  stack with 2-bit flag fields — shape consistent with an ImGui-style
+  window/id routine (this last point is inference from the disassembly,
+  not a certainty).
+
+**Takeaway for extension authors:** there is nothing to implement or
+call here. `window_context` is arc's internal default window/context
+identifier, not a leverage point.
 
 ## See also
 
