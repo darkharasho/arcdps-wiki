@@ -51,6 +51,42 @@ and from other extensions'. Downstream, these arrive as
 [`CBTS_EXTENSION` (40) / `CBTS_EXTENSIONCOMBAT` (49)](/reference/enums/statechange-payloads/)
 statechanges — "for extension use, not managed by arcdps."
 
+### Recipe: emit a custom event
+
+Resolve `e9`/`e10` the same way as the UI exports (`GetProcAddress` on
+arc's handle, cached at init). Then fill a
+[`cbtevent`](/reference/data-structures/cbtevent/) and hand it over —
+arc sets `is_statechange` and `sig` for you, so you only populate the
+fields your event needs:
+
+```c
+typedef void (*arc_e10_t)(cbtevent* ev, uint32_t sig);
+static arc_e10_t arc_add_event;   // = GetProcAddress(arc_dll, "e10"), cached
+
+#define MY_SIG        0x4D594558u  // your module's unique sig
+#define MY_SKILL_ID   0x50000001u  // a private skill id you own
+
+// Record "my_value" as a strike-shaped event from src onto dst.
+void emit_my_metric(uintptr_t src_id, uintptr_t dst_id, int32_t my_value) {
+    cbtevent ev = {0};                 // zero every field you don't set
+    ev.time      = timeGetTime();      // arc's own clock (see cbtevent.time)
+    ev.src_agent = src_id;
+    ev.dst_agent = dst_id;
+    ev.value     = my_value;
+    ev.skillid   = MY_SKILL_ID;        // e10 adds this to the evtc skill table
+    ev.result    = CBTR_STRIKE_DAMAGENORMAL;
+    arc_add_event(&ev, MY_SIG);        // arc stamps is_statechange + sig
+}
+```
+
+Pick the export by intent: **`e10`** when the event names a skill you
+want parsers to resolve (it registers `skillid` in the log's skill
+table); **`e9`** for a raw signal where the skill id is just a tag. On
+the read side, your own combat callback and every other consumer see
+these as [`CBTS_EXTENSIONCOMBAT`/`CBTS_EXTENSION`](/reference/enums/statechange-payloads/)
+carrying your `sig` in `pad61`–`pad64` — filter on it to pick out your
+own events.
+
 **Why this is the high-leverage move:** anything you can express as a
 `cbtevent` becomes first-class log data. You are not limited to reading
 arc's events — you can add to the shared record the entire ecosystem
@@ -67,6 +103,24 @@ the `arcdps_exports` callback slots
 - `imgui` — called each frame to draw your windows
 - `options_tab` — draw controls into your row of arc's options window
 - `options_windows` — contribute to arc's window-visibility menu
+
+You wire these by returning a filled `arcdps_exports` from your init
+function — set the callback pointers and arc calls them inside its own
+frame, so plain ImGui calls just work:
+
+```c
+arcdps_exports arc_exports = {0};
+
+// your init (returned from get_init_addr) fills the table:
+arc_exports.size       = sizeof(arcdps_exports);
+arc_exports.sig        = MY_SIG;
+arc_exports.imguivers  = IMGUI_VERSION_NUM;   // MUST match arc — see below
+arc_exports.out_name   = "my extension";
+arc_exports.out_build  = MY_BUILD_STRING;
+arc_exports.imgui      = imgui;               // your per-frame draw fn
+arc_exports.options_tab = options_tab;        // optional
+return &arc_exports;
+```
 
 ### The version gotcha (binary evidence)
 
@@ -130,19 +184,81 @@ status code; `removeextension2` returns the module handle so you can
 
 ## Read arc's live UI state
 
-To make your UI behave like arc's — hiding with the same hotkeys,
-respecting the same modifier locks — read arc's current state instead of
-tracking it yourself:
+If your extension draws windows, users expect them to behave like arc's:
+vanish on the same hide hotkey, freeze on the same modifier locks, use
+the same profession colours. You get all of that by **reading arc's
+state each frame** instead of reimplementing it — via `e5`/`e6`/`e7`.
 
-- [`e6`](/reference/extension-api/arcdps-exports/#e6--current-ui-settings-bit-mask)
-  returns a **bit mask** of UI settings (UI hidden, in-combat state,
-  modifier move-lock, modifier click-lock).
-- [`e7`](/reference/extension-api/arcdps-exports/#e7--modifier-virtual-key-ids)
-  returns arc's configured **modifier virtual-key ids**, so you can
-  match its keybind conventions exactly.
-- [`e5`](/reference/extension-api/arcdps-exports/#e5--colour-array-pointers)
-  hands you arc's **colour arrays** — reuse its profession/subgroup
-  palette so your windows are visually consistent.
+### Resolve the exports once
+
+You already hold arc's module handle: it's the second argument to your
+[`get_init_addr`](/getting-started/#get_init_addr). Resolve the export
+pointers there and cache them — don't call `GetProcAddress` per frame.
+
+```c
+typedef uint64_t (*arc_e6_t)(void);
+typedef uint64_t (*arc_e7_t)(void);
+typedef void     (*arc_e5_t)(ImVec4** out);
+
+static arc_e6_t arc_ui_flags;   // e6: UI settings bitmask
+static arc_e7_t arc_mod_keys;   // e7: modifier virtual-key ids
+static arc_e5_t arc_colours;    // e5: colour array pointers
+
+// inside your module init, arc_dll = the HMODULE arc handed you
+arc_ui_flags = (arc_e6_t)GetProcAddress(arc_dll, "e6");
+arc_mod_keys = (arc_e7_t)GetProcAddress(arc_dll, "e7");
+arc_colours  = (arc_e5_t)GetProcAddress(arc_dll, "e5");
+```
+
+### Hide and lock in sync with arc
+
+In your `imgui` callback, gate drawing on arc's
+[`e6`](/reference/extension-api/arcdps-exports/#e6--current-ui-settings-bit-mask)
+bitmask so your window obeys the same hide hotkey and modifier locks the
+user already configured:
+
+```c
+enum { ARC_UI_HIDDEN = 1<<0, ARC_UI_MOVELOCK = 1<<2, ARC_UI_CLICKLOCK = 1<<3 };
+
+void imgui(uint32_t not_charsel_or_loading) {
+    if (!not_charsel_or_loading) return;   // arc's own draw guard
+    uint64_t ui = arc_ui_flags ? arc_ui_flags() : 0;
+    if (ui & ARC_UI_HIDDEN) return;        // user hit the hide key — respect it
+
+    ImGuiWindowFlags flags = 0;
+    if (ui & ARC_UI_MOVELOCK)  flags |= ImGuiWindowFlags_NoMove;
+    if (ui & ARC_UI_CLICKLOCK) flags |= ImGuiWindowFlags_NoInputs;
+
+    if (ImGui::Begin("my extension", nullptr, flags)) {
+        // ... your window ...
+    }
+    ImGui::End();
+}
+```
+
+### Match arc's modifier keys and palette
+
+[`e7`](/reference/extension-api/arcdps-exports/#e7--modifier-virtual-key-ids)
+gives you the exact virtual-key ids arc uses for its modifiers, so a
+keybind you add feels native (decode is on the `e7` page). And
+[`e5`](/reference/extension-api/arcdps-exports/#e5--colour-array-pointers)
+hands you arc's live colour arrays — reuse them so a profession or
+subgroup is the same colour in your window as in arc's:
+
+```c
+ImVec4* cols[5];
+arc_colours(cols);
+// cols[1] = profession base, cols[3] = subgroup base (see e5 for the full layout)
+ImVec4 prof_colour = cols[1] ? cols[1][profession] : fallback;  // see caveat
+```
+
+:::caution[Two gotchas the reference implementation learned the hard way]
+- **`e5` pointers can be null for the first few frames** after load —
+  keep a fallback palette until arc has populated them, or you'll
+  dereference null on startup.
+- Refresh subgroup colours on the `combatenter` statechange; they aren't
+  stable for the whole session.
+:::
 
 ## Load as a generic addon host (Nexus / addon-loader)
 
