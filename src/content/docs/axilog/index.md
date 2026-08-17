@@ -33,9 +33,9 @@ Current release: **v0.3.2**.
   follow the methodology relayed by the arcdps developer rather than EI's
   own approximation — see [Differentiators](#differentiators).
 - **Faster and far lighter.** Against the Elite Insights CLI on the same
-  logs and a matched output surface: **2.9× faster and 7.3× lighter** on a
-  real 583k-event zerg fight, **9.7× / 15×** on a 120k-event skirmish, and
-  20–40× on axilog's own default output. See
+  logs and a matched output surface: **4.2× faster and 8.0× lighter** on a
+  real 583k-event zerg fight, **8.7× / 12.7×** on a 120k-event skirmish, and
+  17–32× on axilog's own default output. See
   [accuracy & calibration](/axilog/accuracy/#against-the-elite-insights-cli).
 
 ## Architecture

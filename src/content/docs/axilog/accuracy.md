@@ -261,8 +261,9 @@ is a correctness regression, not a speedup.
 
 ### Against the Elite Insights CLI
 
-Head-to-head against Elite Insights CLI v3.27 plus its bundled .NET 8
-runtime, measured 2026-08-10, same machine, medians of 3 runs after a
+Head-to-head against Elite Insights CLI v3.27.1.0 plus its bundled .NET
+8.0.25 runtime, measured 2026-08-16 on axilog v0.3.2, same machine, medians
+of 3 runs after a
 warmup. "Matched" is axibridge's production EI configuration (detailed
 WvW, damage modifiers, combat replay, raw timeline arrays, phases) against
 axilog's equivalent
@@ -272,10 +273,10 @@ its full skill-DB surface; axilog emits its documented WvW parity surface.
 
 | | Real 5:48 zerg (583k events, 48 players) | 49 s skirmish (120k events, 42 players) |
 | --- | --- | --- |
-| Elite Insights CLI | 7.25 s · 857 MiB peak | 2.43 s · 373 MiB peak |
-| **axilog, matched surface** | **2.49 s (2.9×) · 117 MiB (7.3× less)** | **0.25 s (9.7×) · 24 MiB (15× less)** |
-| axilog, matched + gzip output | 2.86 s · 117 MiB | — |
-| **axilog, default native JSON** | **0.36 s (20×) · 86 MiB (10× less)** | **0.06 s (40×) · 20 MiB (18× less)** |
+| Elite Insights CLI | 6.75 s · 860 MiB peak | 2.27 s · 374 MiB peak |
+| **axilog, matched surface** | **1.59 s (4.2×) · 107 MiB (8.0× less)** | **0.26 s (8.7×) · 29 MiB (12.7× less)** |
+| **axilog, native `--all`** | **1.06 s (6.4×) · 97 MiB (8.9× less)** | **0.16 s (14×) · 25 MiB (15× less)** |
+| **axilog, default native JSON** | **0.40 s (17×) · 90 MiB (9.6× less)** | **0.07 s (32×) · 23 MiB (16× less)** |
 
 Two structural notes behind those numbers. EI pays roughly 2 s of .NET
 startup and JIT **per spawned parse**, so the small-log column is the
@@ -285,11 +286,14 @@ building the full ei-json document in RAM — until MSTREAM's streaming
 serializer removed it entirely (−95% peak, output verified byte-identical
 across 96 flag/output combinations). axilog now leads every cell.
 
-MROSTER, which landed after that rerun, cut the matched-surface run on the
-real log further still — 2.60 s → **1.70 s** and 117 → 92 MiB in its own
-back-to-back measurement — because nine per-player arrays are positionally
-joined to `targets[]` and shrinking the roster 8.8× shrinks all of them by
-the same factor. `--timeseries` alone went 1.33 s → **0.56 s**.
+The large-log ratio improved 2.9× → 4.2× since the previous (2026-08-10)
+measurement, and the cause is MROSTER: nine per-player arrays are
+positionally joined to `targets[]`, so curating the enemy roster 8.8×
+shrank all of them by the same factor. axilog's matched run went
+2.49 s → 1.59 s while EI stood still. The small-log ratio drifted the other
+way — 9.7× → 8.7× — purely because EI itself ran faster this session; its
+2.27 s reproduces an earlier capture almost exactly, so the older EI row
+was the slow sample rather than axilog having regressed.
 
 The full record — the harness, the raw criterion samples, the payload
 tables, and every optimization that was *declined* along with why — is in
