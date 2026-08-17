@@ -4,9 +4,11 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "npm run build-api && astro dev",
-    "build": "npm run build-api && astro build",
+    "dev": "npm run build-api && npm run build-axilog-schema && astro dev",
+    "build": "npm run build-api && npm run build-axilog-schema && astro build",
     "build-api": "node scripts/build-api.mjs",
+    "build-axilog-schema": "node scripts/build-axilog-schema.mjs",
+    "snapshot-axilog-schema": "node scripts/snapshot-axilog-schema.mjs",
     "preview": "astro preview",
     "check": "astro check",
     "snapshot-exports": "node scripts/snapshot-exports.mjs",

@@ -277,4 +277,4 @@ between-samples, before-first, after-last and empty-track cases.
 - [Movement & effects](/guides/movement-and-effects/) — the raw position,
   velocity and facing events.
 - [WvW maps in logs](/guides/wvw-maps/) — map ids and what they mean.
-- [Output schema](/axilog/schema/#replay-and-missiles) — the block shapes.
+- [Output schema](/axilog/schema/#combat-replay--two-halves-two-gates) — the block shapes.

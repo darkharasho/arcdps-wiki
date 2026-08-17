@@ -361,8 +361,12 @@ pre-log casts; without it, `saved` was exactly +1 for 11 of 44 players.
 Cast bucketing is by raw caster address, then folded to the account
 representative. The scope gap is documented rather than papered over: this
 reproduces the *animated*-cast pipeline only. EI's separate instant-cast
-pipeline (weapon swaps, procs, instant-cast mechanics) accounts for
-roughly 29% of a real log's cast entries and is not decoded.
+pipeline (weapon swaps, procs, instant-cast mechanics) accounts for roughly
+29% of a real log's cast entries. Those finders now **run** — 565 of GW2EI's
+649 `InstantCastFinder` definitions are transcribed, and they are what backs
+the five emitted `skillMap` proc/instant flags — but their output is not yet
+merged into `rotation`, which stays animated-cast only. The remaining gap is
+that merge, not the decode.
 
 ## Combat replay, in one paragraph
 
@@ -387,13 +391,14 @@ Documented rather than faked — where axilog doesn't compute a field, the
 list, with the intentional divergences alongside, is on the
 [parity page](/axilog/parity/); the short version:
 
-- **`wvWMapData` objectives** — only the three team-id fields. EI's
-  per-objective capture-ownership timelines are a whole event family
-  axilog does not decode yet, and the last whole EI feature surface still
-  missing.
-- **Instant casts** — ~29% of a real log's cast entries.
-- **Skill names and icons** — the log's own skill table is a genuinely
-  narrower data source than EI's bundled, API-backed database.
+- **Instant casts** — ~29% of a real log's cast entries: computed by the
+  transcribed finders, but not yet merged into `rotation`.
+- **Skill names** — the log's own skill table is a genuinely narrower data
+  source than EI's bundled, API-backed database. `autoAttack` needs the
+  live API and is omitted; the five proc/instant flags are emitted.
+- **Skill icons in `ei-json`** — carried natively at
+  `catalogs.skills[].icon`, but EI's `skillMap` shape has no field for
+  them.
 - **Six damage-modifier ids**, each needing an engine feature axilog does
   not have.
 - **Shield damage** is not decoded anywhere.

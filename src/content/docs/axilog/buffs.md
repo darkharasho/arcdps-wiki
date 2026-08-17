@@ -348,5 +348,5 @@ differently-paced log could legitimately land further out.
 - [Damage modifiers](/axilog/damage-modifiers/) — the largest consumer of
   these timelines.
 - [Boons, buffs & uptime](/guides/boons-and-buffs/) — the raw-event view.
-- [Output schema](/axilog/schema/#players) — `boons[]` and the EI-compat
+- [Output schema](/axilog/schema/#buff-stack-timelines--boons-second-gate-and-conditions) — `boons[]` and the EI-compat
   `buffUptimes` / `selfBuffs` / `groupBuffs` / `squadBuffs` arrays.

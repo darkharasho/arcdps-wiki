@@ -15,7 +15,7 @@ single-file interactive HTML report. It reimplements
 metrics it covers are calibrated against a real dps.report EI export in
 CI on every run.
 
-Current release: **v0.3.1**.
+Current release: **v0.3.2**.
 
 ## Why it exists
 
@@ -45,8 +45,8 @@ One Cargo workspace, seven crates:
 | Crate | Role |
 | --- | --- |
 | `axilog-core` | Decode, resolution and all analysis. The only place log semantics live. |
-| `axilog-schema` | The native report type (`Report`) and its serialization. |
-| `axilog-ei` | Adapter that maps a `Report` into Elite Insights' JSON shape, with a streaming writer for the CLI path. |
+| `axilog-schema` | The native report format **1.0** container and its serialization. |
+| `axilog-ei` | Adapter that maps that container into Elite Insights' JSON shape, with a streaming writer for the CLI path. |
 | `axilog-cli` | The `axilog` binary — `parse`, `anonymize`, output formats and views. |
 | `axilog-node` | napi-rs native addon (`@axiapps/axilog`). |
 | `axilog-py` | PyO3 `abi3-py39` extension module (`axilog`). |
@@ -74,9 +74,13 @@ implementation to drift:
 4. **Emit** — native JSON, `ei-json`, CSV, table, or HTML.
 
 Expensive analyses are opt-in flags, because each one materially inflates
-the output — see
-[always-on vs opt-in](/axilog/schema/#always-on-vs-opt-in) for the
-measured cost of each.
+the output — on the committed fixture, per-skill damage and per-second
+series each grow the native JSON more than sevenfold on their own. The cost
+is not all the same kind: most gate only *serialization*, but `--replay` and
+`--modifiers` gate the computation itself, so those two cost real parse time
+rather than just bytes. `--all` turns on everything the build knows about.
+See the [quickstart](/axilog/quickstart/#opt-in-gates) for the measured
+table.
 
 ## Differentiators
 

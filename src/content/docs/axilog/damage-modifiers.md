@@ -313,7 +313,7 @@ above possible at all.
 
 - [Buffs & boons](/axilog/buffs/) — the stack timelines every buff-gated
   modifier reads, and the residual class above.
-- [Output schema](/axilog/schema/#damage_mods-and-damage_mod_map) — the
+- [Output schema](/axilog/schema/#blocks--uniform-id-keyed-statistics) — the
   emitted block shapes.
 - [Accuracy & calibration](/axilog/accuracy/) — where this sits against
   the rest of the parity surface.

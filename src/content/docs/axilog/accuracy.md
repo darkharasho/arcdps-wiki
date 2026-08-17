@@ -1,13 +1,13 @@
 ---
 title: axilog accuracy & calibration
-description: How axilog is held to Elite Insights' numbers at v0.3.1 — the golden fixtures, the exact-or-documented-exception bar, the current headline results across every calibrated surface, the head-to-head performance comparison, and the honest gaps.
+description: How axilog is held to Elite Insights' numbers at v0.3.2 — the golden fixtures, the exact-or-documented-exception bar, the current headline results across every calibrated surface, the head-to-head performance comparison, and the honest gaps.
 source: community
 ---
 
 Every number [axilog](/axilog/) prints is either **exactly** what Elite
 Insights prints for the same log, or a documented, ruled exception with a
 traced cause. This page is the evidence: how that bar is enforced, what
-the results are at **v0.3.1**, and where the gaps still are.
+the results are at **v0.3.2**, and where the gaps still are.
 
 The places axilog deliberately differs are on their own page —
 [parity & divergences](/axilog/parity/).
@@ -300,19 +300,28 @@ tables, and every optimization that was *declined* along with why — is in
 Where axilog does not compute something, `ei-json` omits the key rather
 than emitting a plausible zero. The current list:
 
-- **`wvWMapData` objectives.** Only the three team-id fields are emitted.
-  EI additionally carries `{red,blue,green}ShardID` and `objectiveData[]`
-  — per-objective capture-ownership timelines for every Camp, Tower and
-  Keep. That is a whole event family axilog does not decode yet: parked,
-  not faked, and the last whole EI feature surface still missing.
-- **Instant casts.** The rotation pipeline reproduces EI's *animated*-cast
-  path only; the instant-cast pipeline is roughly **29%** of a real log's
-  cast entries. The calibrated rotation number is the animated-cast count,
-  not a total.
-- **Skill names and icons.** `skillMap` names come from the log's own
-  skill table, a genuinely different data source from EI's bundled,
-  API-backed database, so names are spot-checked rather than calibrated
-  and the API-dependent flags are omitted.
+- **Instant casts are computed but not merged.** The instant-cast finders
+  now run — 565 of GW2EI's 649 `InstantCastFinder` definitions are
+  transcribed — but their output is not yet folded into `rotation`, which
+  remains animated-cast only. So the calibrated rotation number is still
+  the animated-cast count rather than a total, and the gap is a merge that
+  has not happened rather than a pipeline that does not exist. The 6
+  `UsingNoAnimatedCastChecker` finders are blocked on the same merge,
+  because they need the cast window it would establish.
+- **Skill names.** `skillMap` names come from the log's own skill table, a
+  genuinely different data source from EI's bundled, API-backed database,
+  so names are spot-checked rather than calibrated. `autoAttack` is still
+  omitted — it needs the live API and was refused rather than guessed. The
+  five proc/instant/accuracy flags are *not* in that category any more:
+  `isInstantCast`, `isTraitProc`, `isGearProc`, `isUnconditionalProc` and
+  `isNotAccurate` are emitted, derived from the finders' own availability
+  predicates rather than from API data.
+- **Skill icons, in `ei-json` only.** The native container carries them at
+  `catalogs.skills[].icon` — 372 of 456 catalogued skills on the fixture,
+  boons and conditions included via the GW2EI buff-table fallback. EI's
+  `skillMap`/`buffMap` shape has no icon field, so the EI-compat layer
+  cannot expose them. A consumer that needs art should read the native
+  catalog.
 - **Six damage-modifier ids**, each needing an engine feature axilog does
   not have.
 - **Shield damage** is not decoded, so damage-modifier gains and

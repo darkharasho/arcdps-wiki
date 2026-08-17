@@ -1,14 +1,16 @@
 ---
 title: axilog quickstart
-description: Install the axilog CLI from a GitHub Release, tour parse's formats, views and six opt-in flags, and run a first parse from the Node and Python SDKs — with real output from the project's committed WvW fixture.
+description: Install the axilog CLI from a GitHub Release, tour parse's formats, views and opt-in gates, and run a first parse from the Node and Python SDKs — with real output from the project's committed WvW fixture.
 source: community
 ---
 
-Everything on this page was run against [axilog](/axilog/) **0.3.1** and
+Everything on this page was run against [axilog](/axilog/) **0.3.2** and
 the project's committed, anonymized WvW fixture
-(`fixtures/wvw-small.anon.zevtc` — 42 players, 49.3 s, Green Alpine
-Borderlands). The `:Anon<N>.<digits>` account names in the output are the
-fixture's own placeholders, not redactions.
+(`fixtures/wvw-small.anon.zevtc` — 49.3 s on Green Alpine Borderlands, 122
+tracked entities, of which 42 are friendly players and 38 are squad
+members). Those three counts are why the numbers below differ depending on
+what is being counted. The `:Anon<N>.<digits>` account names in the output
+are the fixture's own placeholders, not redactions.
 
 ## CLI
 
@@ -23,7 +25,7 @@ published per release: `x86_64-unknown-linux-gnu`,
 Verify the checksum before extracting:
 
 ```sh
-VER=0.3.1
+VER=0.3.2
 TARGET=x86_64-unknown-linux-gnu
 BASE=https://github.com/darkharasho/axilog/releases/download/v$VER
 
@@ -31,11 +33,11 @@ curl -LO $BASE/axilog-$VER-$TARGET.tar.gz
 curl -LO $BASE/axilog-$VER-$TARGET.tar.gz.sha256
 
 sha256sum -c axilog-$VER-$TARGET.tar.gz.sha256
-# axilog-0.3.1-x86_64-unknown-linux-gnu.tar.gz: OK
+# axilog-0.3.2-x86_64-unknown-linux-gnu.tar.gz: OK
 
 tar xzf axilog-$VER-$TARGET.tar.gz
 ./axilog --version
-# axilog 0.3.1
+# axilog 0.3.2
 ```
 
 Each archive contains a single `axilog` binary — put it anywhere on your
@@ -134,36 +136,72 @@ Note that `--view rotation` does **not** require `--rotation`. The cast
 analysis always runs; the flag only controls whether per-cast detail is
 serialized into JSON.
 
-### Opt-in blocks
+### Opt-in gates
 
-Six flags add expensive blocks to the JSON outputs.
+Six flags add blocks to the JSON outputs, plus `--all`, which turns on
+everything at once.
 
 ```sh
 axilog parse fight.zevtc --skill-damage --timeseries --rotation -o full.json
+axilog parse fight.zevtc --all -o everything.json
 ```
 
 | Flag | Adds |
 | --- | --- |
-| `--skill-damage` | Per-player damage grouped by skill id — outgoing, per-target, and incoming. |
-| `--timeseries` | Per-player cumulative per-second series, plus the per-enemy DPS summary. |
-| `--rotation` | Per-player cast lists grouped by skill id. |
-| `--replay` | Position tracks on a 300 ms grid, with down/dead intervals. Also feeds the `html` report's replay tab. |
-| `--missiles` | Projectile fired/hit/denied counts, per player and squad-wide. |
-| `--modifiers` | Per-player trait/rune/relic/sigil/food damage-modifier attribution, plus the descriptor map. |
+| `--skill-damage` | Per-skill outgoing and incoming splits under `blocks.damage`. |
+| `--timeseries` | Per-entity per-second channels in `blocks.series`, plus the buff stack timelines in `blocks.boons` and `blocks.conditions`. |
+| `--rotation` | Per-entity cast lists and aftercast detail in `blocks.rotation`. |
+| `--replay` | Position tracks in `blocks.replay.tracks`. Also feeds the `html` report's replay tab. |
+| `--missiles` | Projectile fired/hit/denied counts, per entity and squad-wide. |
+| `--modifiers` | Damage-modifier attribution in `blocks.damage_mods`, plus its catalog. |
+| `--all` | Every analysis pass **this version** knows about — a union with the individual flags, never an override. |
 
-Five of the six cost **bytes, not parse time** — the underlying analyses
-run either way. `--modifiers` is the exception: it gates the computation,
-not just the serialization, because the modifier engine is a separate pass
-over every damage event crossed with a ~200-definition catalog. On the
-committed fixture an `ei-json` run goes 0.074 s → 0.155 s with it on.
+Prefer `--all` to enumerating flags if you want complete documents: it is
+defined as "everything that exists in this version", so a pass added by a
+later release is included automatically rather than silently missing.
 
-`--skill-damage`, `--timeseries`, `--rotation` and `--modifiers` also
-unlock their counterparts in `--format ei-json` (`totalDamageDist`,
-`damage1S`, `rotation[]`, `damageModifiers`, and friends); `--replay` adds
-EI's own pixel-coordinate `combatReplayData`. `--missiles` has no EI
+They are not free, and they are not all the same kind of cost.
+`--skill-damage`, `--timeseries` and `--rotation` only control whether an
+already-computed result is serialized. `--replay` and `--modifiers` gate the
+computation itself — the modifier engine is a separate pass over every
+damage event crossed with ~200 catalogued definitions, and nothing pays for
+it unless asked.
+
+Measured on the committed fixture (release build, compact JSON):
+
+| Flag | Bytes | Wall |
+| --- | --- | --- |
+| *(none)* | 461,086 | 0.07 s |
+| `--missiles` | 466,565 | 0.07 s |
+| `--rotation` | 708,367 | 0.07 s |
+| `--modifiers` | 616,591 | 0.08 s |
+| `--replay` | 1,679,284 | 0.12 s |
+| `--skill-damage` | 3,338,819 | 0.08 s |
+| `--timeseries` | 3,563,403 | 0.09 s |
+| `--all` | 8,067,599 | 0.16 s |
+
+That fixture is a 49-second skirmish, and those ratios do not hold as logs
+grow. The per-skill and per-second blocks are combinatorial — entity ×
+target × skill and entity × target × second — and a WvW zerg fight
+enumerates dozens of enemy players, siege pieces, dolyaks and guards per
+player rather than a boss's handful of adds. See the project's
+`docs/BENCHMARKS.md` for real-log numbers.
+
+`--skill-damage`, `--timeseries`, `--rotation`, `--modifiers` and `--replay`
+also unlock their counterparts in `--format ei-json`; `--missiles` has no EI
 equivalent and is native-only. See
-[always-on vs opt-in](/axilog/schema/#always-on-vs-opt-in) for what each
-one costs in bytes.
+[the EI-compat surface](/axilog/schema/#the-ei-compat-surface) for the
+field-by-field mapping.
+
+### Always check `coverage`
+
+`coverage` is the container's answer to a question the old flat schema could
+not express: whether a missing block means "you didn't ask for it" or "the
+log genuinely had none". `empty` is a fact about the log — safe to render as
+zero rows. `not_computed` is a fact about your flags — re-parse with the gate
+on. The other two values are `present` and `unsupported`; see
+[the coverage map](/axilog/schema/#coverage--what-a-blocks-status-means-and-what-to-do-about-it)
+for the full table.
 
 ### Anonymize before sharing
 
@@ -195,53 +233,56 @@ const { parseFile } = require('@axiapps/axilog')
 
 const report = parseFile('./fight.zevtc')
 
-console.log(report.schema_version, report.encounter.map, report.encounter.duration_ms)
+console.log(report.axilog)
 
-const squadDamage = report.players.reduce((sum, p) => sum + p.damage.total, 0)
-console.log(report.players.length, 'players,', squadDamage, 'squad damage')
+const squad = report.entities.filter((e) => e.role === 'squad')
+const damage = report.blocks.damage
+console.log(squad.length, 'squad of', report.entities.length, '| squad damage', damage.squad.total)
 
-const top = [...report.players].sort((a, b) => b.damage.total - a.damage.total)[0]
-const quickness = top.boons.find((b) => b.name === 'Quickness')
-console.log(top.account, top.profession, top.damage.total, quickness.presence_pct.toFixed(1))
+const top = squad
+  .map((e) => [e, damage.by_entity[e.id]])
+  .sort((a, b) => b[1].total - a[1].total)[0]
+console.log(top[0].account, top[0].profession, top[1].total, top[1].dps)
 ```
 
 ```text
-0.2 Green Alpine Borderlands 49285
-42 players, 2138414 squad damage
-:Anon104.4848 Engineer 205612 66.2
+{ generated_from: 'wvw-small.anon.zevtc', schema: '1.0', version: '0.3.2' }
+38 squad of 122 | squad damage 2138414
+:Anon104.4848 Engineer 205612 4171.898143451354
 ```
 
-`presence_pct` is a full-precision `f64`; the table view rounds it to one
-decimal for display.
+There is no flat `players[]` in the native container — the roster is
+`entities[]` filtered by `role`, and per-entity statistics live in
+`blocks.<name>.by_entity`, keyed by `entities[].id`. Those keys are JSON
+object keys, so they are *strings*; JS numeric indexing coerces for you, but
+Python needs `str(id)`.
 
-Opt-in blocks go in a second argument, in **camelCase**:
+Opt-in gates go in a second argument, in **camelCase**:
 
 ```js
-const report = parseFile('./fight.zevtc', { skillDamage: true, rotation: true })
+const full = parseFile('./fight.zevtc', { skillDamage: true, rotation: true })
 
-const p = report.players.find((p) => p.account === ':Anon104.4848')
-console.log(p.skill_damage.outgoing.length, 'skills;', p.rotation.length, 'rotation entries')
-console.log(p.skill_damage.outgoing[0])
+console.log(Object.keys(full.blocks.damage.by_entity['1']).sort())
 ```
 
 ```text
-18 skills; 15 rotation entries
-{ crit_hits: 0, flank_hits: 34, hits: 62, max: 1268, min: 1, skill_id: 736, total: 13782 }
+[ 'breakbar_damage_dealt', 'by_skill', 'by_skill_taken', 'downs_dealt',
+  'dps', 'kills_dealt', 'per_target', 'taken', 'total' ]
 ```
 
 Note the asymmetry: the *options* object is camelCase (`skillDamage`),
-while the *report* keys are the schema's own snake_case (`skill_damage`).
+while the *report* keys are the schema's own snake_case (`by_skill_taken`).
 The options are a napi-generated JS surface; the report is the native JSON
 verbatim.
 
 `ParseOptions` accepts `replay`, `skillDamage`, `timeseries`, `missiles`,
-`rotation` and `modifiers`. The rest of the API is
-`parseBuffer(buf, opts?)` for already-read bytes, `parseFileEi(path,
-opts?)` for the EI-compat shape, and `anonymizeFile(inPath, outPath)`,
-which returns the number of player agents rewritten. Types ship with the
-package —
+`rotation`, `modifiers` and `everything` — the last being the SDK mirror of
+the CLI's `--all`. The rest of the API is `parseBuffer(buf, opts?)` for
+already-read bytes, `parseFileEi(path, opts?)` for the EI-compat shape,
+and `anonymizeFile(inPath, outPath)`, which returns the number of player
+agents rewritten. Types ship with the package —
 [`types.d.ts`](https://github.com/darkharasho/axilog/blob/main/crates/axilog-node/types.d.ts)
-is the typed `Report`.
+exports `ReportV1`.
 
 ## Python
 
@@ -249,8 +290,8 @@ is the typed `Report`.
 pip install axilog
 ```
 
-Wheels are `cp39-abi3`, so one wheel per platform covers every CPython 3.9
-and newer. It is a PyO3 extension module over the same Rust core, and
+Wheels are `cp39-abi3`, so one wheel per platform covers every CPython
+3.9 and newer. It is a PyO3 extension module over the same Rust core, and
 `parse_file` returns plain dicts and lists.
 
 ```python
@@ -258,59 +299,64 @@ import axilog
 
 report = axilog.parse_file("./fight.zevtc")
 
-print(report["schema_version"], report["encounter"]["map"], report["encounter"]["duration_ms"])
+print(report["axilog"])
+print(report["encounter"]["map"], report["encounter"]["duration_ms"])
 
-squad_damage = sum(p["damage"]["total"] for p in report["players"])
-print(len(report["players"]), "players,", squad_damage, "squad damage")
+squad = [e for e in report["entities"] if e["role"] == "squad"]
+damage = report["blocks"]["damage"]
+print(len(squad), "squad of", len(report["entities"]), "entities")
 
-top = max(report["players"], key=lambda p: p["damage"]["total"])
-quickness = next(b for b in top["boons"] if b["name"] == "Quickness")
-print(top["account"], top["profession"], top["damage"]["total"], round(quickness["presence_pct"], 1))
+top = max(squad, key=lambda e: damage["by_entity"][str(e["id"])]["total"])
+row = damage["by_entity"][str(top["id"])]
+print(top["account"], top["profession"], row["total"], round(row["dps"], 1))
 ```
 
 ```text
-0.2 Green Alpine Borderlands 49285
-42 players, 2138414 squad damage
-:Anon104.4848 Engineer 205612 66.2
+{'generated_from': 'wvw-small.anon.zevtc', 'schema': '1.0', 'version': '0.3.2'}
+Green Alpine Borderlands 49285
+38 squad of 122 entities
+:Anon104.4848 Engineer 205612 4171.9
 ```
 
-Opt-in blocks are keyword arguments, in snake_case, all defaulting to
-`False`:
+Names are not repeated per entity — they live once in `catalogs`, and the
+blocks reference them by id:
 
 ```python
-report = axilog.parse_file("./fight.zevtc", skill_damage=True, timeseries=True)
-
-p = next(p for p in report["players"] if p["account"] == ":Anon104.4848")
-print(len(p["skill_damage"]["outgoing"]), "skills;", len(p["per_second"]["damage"]), "seconds")
-print(p["per_second"]["damage"][20:28])
+boons = report["blocks"]["boons"]["by_entity"][str(top["id"])]
+print(report["catalogs"]["buffs"]["1187"]["name"], round(boons["1187"]["uptime_pct"], 1))
 ```
 
 ```text
-18 skills; 50 seconds
-[79307, 82180, 101155, 108740, 119234, 139715, 148405, 156394]
+Quickness 6.0
 ```
 
-Those are cumulative running totals, one per second — not per-second
-deltas. The last entry equals that player's whole-fight `damage.total`.
+Opt-in gates are keyword arguments, in snake_case, all defaulting to
+`False`: `replay`, `skill_damage`, `timeseries`, `missiles`, `rotation`,
+`modifiers` and `everything`.
 
 ### Damage modifiers from Python
 
-`modifiers=True` fills `players[].damage_mods` and the top-level
-`damage_mod_map`:
+`modifiers=True` fills `blocks.damage_mods` and the `catalogs.damage_mods`
+descriptor map. The per-entity entries are keyed by modifier id, and the
+key's **sign** encodes direction — negative ids are incoming modifiers,
+positive ids outgoing:
 
 ```python
 report = axilog.parse_file("./fight.zevtc", modifiers=True)
 
-p = next(p for p in report["players"] if p["account"] == ":Anon104.4848")
-mods = report["damage_mod_map"]
-for e in p["damage_mods"]["outgoing"][:3]:
-    print(mods[str(e["id"])]["name"], e["hit_count"], "/", e["total_hit_count"], e["damage_gain"])
+top = next(e for e in report["entities"] if e["account"] == ":Anon104.4848")
+mods = report["blocks"]["damage_mods"]["by_entity"][str(top["id"])]["overall"]
+cat = report["catalogs"]["damage_mods"]
+
+outgoing = {k: v for k, v in mods.items() if not k.startswith("-")}
+for mod_id, e in sorted(outgoing.items(), key=lambda kv: -kv[1]["damage_gain"])[:3]:
+    print(cat[mod_id]["name"], e["hit_count"], "/", e["total_hit_count"], e["damage_gain"])
 ```
 
 ```text
-Moving Bonus 118 / 226 5242.952
-Excessive Energy 98 / 226 5078.0
-Relic of the Eagle 64 / 226 7080.636
+Fury 226 / 226 182708.0
+Might >= 20 272 / 319 168704.0
+Might 25 242 / 319 136539.0
 ```
 
 `damage_gain` is the modifier's share of the *observed* damage, which
@@ -318,7 +364,8 @@ already contains the bonus — see
 [the gain formula](/axilog/damage-modifiers/#why-g100g-and-not-g100).
 
 For the EI-compat shape, `parse_file_ei` takes the same flags as
-keyword-only arguments:
+keyword-only arguments. That shape *does* have a flat `players[]`, because
+EI's does:
 
 ```python
 ei = axilog.parse_file_ei("./fight.zevtc")
@@ -331,12 +378,12 @@ Detailed WvW - Green Alpine Borderlands 49285 42
 :Anon104.4848 205612
 ```
 
-The rest of the API is `parse_bytes(data, ...)` and
-`anonymize_file(in_path, out_path)`. `parse_file` raises `OSError` if the
-path cannot be read and `ValueError` if the bytes are not a decodable
-arcdps log. Types ship as
+The rest of the API is `parse_bytes(data, ...)` for already-read bytes and
+`anonymize_file(in_path, out_path)`, which returns the number of player
+agents rewritten. `parse_file` raises `OSError` if the path cannot be read
+and `ValueError` if the bytes are not a decodable arcdps log. Types ship as
 [`axilog.pyi`](https://github.com/darkharasho/axilog/blob/main/crates/axilog-py/axilog.pyi)
-— one `TypedDict` per schema block.
+— `parse_file` is typed as returning `ReportV1`.
 
 ## See also
 
