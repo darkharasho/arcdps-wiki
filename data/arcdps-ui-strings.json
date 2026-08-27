@@ -1,11 +1,11 @@
 {
-  "dllVersion": "1.2026.718.905",
+  "dllVersion": "1.2026.816.1149",
   "generatedFrom": "strings -a (ASCII + UTF-16LE)",
   "note": "Extracted UI string literals only; not decompiled source. Confirm behavior in-game before documenting as fact.",
   "counts": {
     "configKeys": 86,
-    "elementIds": 107,
-    "uiText": 317
+    "elementIds": 112,
+    "uiText": 318
   },
   "configKeys": [
     "always_draw_windows",
@@ -123,9 +123,11 @@
     "buffsname",
     "buffsplist",
     "buffsremove",
+    "buffsvis",
     "chcliadd",
     "chcliname",
     "chcliremove",
+    "chclivis",
     "collogopts",
     "CopyLink",
     "dpspad",
@@ -163,6 +165,8 @@
     "otr",
     "otrf",
     "otrt",
+    "panelcopy",
+    "panelpaste",
     "pconf",
     "pctgc",
     "rem",
@@ -184,6 +188,7 @@
     "squadadd",
     "squadname",
     "squadremove",
+    "squadvis",
     "subhidelist",
     "summary",
     "targetpts",
@@ -406,6 +411,7 @@
     "Outgoing strips on enemies",
     "own subgroup only",
     "panel_",
+    "Paste window configuration",
     "percent squad participants",
     "Percentage",
     "Percentage 2",

@@ -18,7 +18,7 @@ Everything here is arc describing its own UI, in its own words.
 
 :::caution[Status: extracted, unconfirmed]
 Every entry on this page was pulled from the DLL string table
-(build **1.2026.718.905**) and has **not yet been confirmed in-game**.
+(build **1.2026.816.1149**) and has **not yet been confirmed in-game**.
 A string tells you a feature exists and, where a tooltip was found,
 what arc says it does — but not which panel it lives in, its exact
 behavior, or its edge cases. Treat everything here as a lead to verify,
@@ -27,7 +27,7 @@ marked **[verified]**; until then, assume unconfirmed.
 
 Extraction is reproducible: `npm run snapshot-ui-strings` writes
 `data/arcdps-ui-strings.json`, and the raw inventory (86 config keys,
-107 element ids, 317 UI strings) lives there.
+112 element ids, 318 UI strings) lives there.
 :::
 
 ## The options window
@@ -159,6 +159,14 @@ Extracted toggles (arc's label text). Behavior unconfirmed:
   bar colour* / *name colour*, *use red names for players loading*
 - **Privacy**: "Hides player names and colours. Disables…" (label
   *Disabled on out-of-party agents*)
+
+Build **1.2026.816.1149** (2026-08-26) added five element ids and one
+tooltip in this area: `panelcopy` / `panelpaste` with the tooltip
+"Paste window configuration" — copying one window's configuration onto
+another — and `buffsvis` / `chclivis` / `squadvis`, which by their `…vis`
+naming look like per-window visibility controls for the buffs, chat-cli,
+and squad windows. All unconfirmed in-game, like everything else here;
+see the [build history](/reference/build-history/) for the diff.
 
 ## Logging options
 

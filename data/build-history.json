@@ -1,5 +1,21 @@
 [
   {
+    "dllVersion": "1.2026.816.1149",
+    "md5": "4c3adbe7b800d422053e4e55f76b6072",
+    "observedAt": "2026-08-27",
+    "exportsAdded": [],
+    "exportsRemoved": [],
+    "uiStringsAdded": [
+      "buffsvis",
+      "chclivis",
+      "panelcopy",
+      "panelpaste",
+      "squadvis",
+      "Paste window configuration"
+    ],
+    "uiStringsRemoved": []
+  },
+  {
     "dllVersion": "1.2026.718.905",
     "md5": "753f00b01829bb9088c00dcc32d19077",
     "observedAt": "2026-08-10",
