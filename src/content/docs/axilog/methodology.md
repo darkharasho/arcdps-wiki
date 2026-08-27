@@ -1,6 +1,6 @@
 ---
 title: axilog calculation methodology
-description: How axilog derives each metric from the raw EVTC stream — damage and pet folding, the orphaned-instid repair, arcdps down contribution, CC, condition classification, rotation and cast tracking — and what each rule is grounded in.
+description: How axilog derives each metric from the raw EVTC stream — damage and pet folding, the orphaned-instid repair, arcdps down contribution, CC, the arcdps cleanse/strip methodology, WvW team resolution, condition classification, rotation and cast tracking — and what each rule is grounded in.
 source: community
 ---
 
@@ -233,6 +233,70 @@ foe-filtered, and converted at the adapter boundary by GW2EI's own rule
 (`Math.Round(value / 10.0, 1)`) — which is why the core carries a raw
 integer sum.
 
+## Cleanses and strips: two methodologies, counted separately
+
+Since v1.7.0 support stats are counted twice, on purpose. The EI-parity
+pass reproduces GW2EI's `SupportStatistics.cs` exactly (calibrated
+bit-identical), and a separate `arcdps_parity` pass transcribes the
+in-game arcdps meter's own counting code, shared by the arcdps author
+(2026-08-26). They disagree in both *population* and *rules*, and no
+correction factor maps one onto the other — see
+[parity](/axilog/parity/#cleanses-three-populations-not-one) for the
+consumer-facing picture. The arcdps rules, in evaluation order:
+
+1. Only `CBTS_BUFFREMOVE_ALL` rows count — `BUFFREMOVE_SINGLE` and
+   `MANUAL` feed neither meter.
+2. **Stability** is skipped unless `result > 1`: a single-stack loss is
+   stability consumed by incoming CC, not a strip. **Blind** is skipped
+   when `src_agent == dst_agent` (self-consumed by the blinded attack).
+3. Roles are inverted relative to an apply: on a removal row `src_agent`
+   is the buff **holder** and `dst_agent` the **remover**; both must be
+   nonzero.
+4. If the remover's master resolves to the holder (self-self or
+   pet-of-self), a condition removal is a cleanse credited to the holder,
+   with no friend-or-foe test.
+5. Otherwise the remover is credited: a condition removal with
+   `iff == FRIEND` is a cleanse; a boon removal with `iff == FOE` is a
+   strip. The `iff` byte itself decides — not squad membership.
+6. The self-removal burst a player produces **on going down** is
+   subtracted back out (below).
+7. Pets fold into masters with no squad/non-squad discrimination,
+   bucketed as `_by_minion` (the pet removed) and `_on_minion` (removed
+   off a pet), mirroring the in-game window's "from npcs" / "vs npcs"
+   toggles.
+
+### The down-undo chain
+
+Rule 6 started life as a bare time window and became a **bounded chain
+walk** in v1.7.0: step back from the down over consecutive rows between
+the downed agent and itself, ending at the first entry that is not a
+buff removal. The walk deliberately steps *through* three kinds of
+interleaved row that arcdps's live ring buffer never sees between chain
+entries but a log does: buff-damage ticks (arcdps locks its chain around
+the condition-simulation loop; a log interleaves the server's rows),
+"determined" applies, and zero-source server rows. Two adaptations were
+forced by measurement against all 25 downs in the fixture: statechange
+rows are skipped rather than treated as chain entries, and the walk is
+bounded (unbounded, one burst reached 23 rows against a true 10). One
+more wire fact fell out: **"determined" is three buff ids, not one** —
+762, 785 and 788 share the icon; 788 is the training-golem variant and
+WvW player downs carry 762.
+
+## WvW team resolution: first write wins
+
+`CBTS_TEAMCHANGE` is not once-per-agent. arcdps emits extra team-change
+rows at log teardown as the recorder zones out of the map, stamping
+agents onto other teams on the way out — so a last-write-wins map can
+let one trailing row decide friend/foe for the whole log. On a real
+reference log that split the squad in half (45 squad / 40 enemy read as
+20 / 25, with squad members drawn as hostiles). Since v1.5.1
+`wvw::resolve_teams` takes the **first** nonzero team observed per agent
+(team `0` is a placeholder, not a team). Whether a log is affected
+depends only on whether a map transition landed inside the recording —
+affected logs must be re-parsed, not patched. See
+[WvW allies & enemies](/guides/wvw-allies-and-enemies/) for the general
+friend/foe problem.
+
 ## Boon simulation, in one paragraph
 
 Boon uptime is a per-`(agent, buff)` stack-count state machine over
@@ -362,7 +426,7 @@ Cast bucketing is by raw caster address, then folded to the account
 representative. The scope gap is documented rather than papered over: this
 reproduces the *animated*-cast pipeline only. EI's separate instant-cast
 pipeline (weapon swaps, procs, instant-cast mechanics) accounts for roughly
-29% of a real log's cast entries. Those finders now **run** — 565 of GW2EI's
+29% of a real log's cast entries. Those finders now **run** — 571 of GW2EI's
 649 `InstantCastFinder` definitions are transcribed, and they are what backs
 the five emitted `skillMap` proc/instant flags — but their output is not yet
 merged into `rotation`, which stays animated-cast only. The remaining gap is
@@ -393,9 +457,12 @@ list, with the intentional divergences alongside, is on the
 
 - **Instant casts** — ~29% of a real log's cast entries: computed by the
   transcribed finders, but not yet merged into `rotation`.
-- **Skill names** — the log's own skill table is a genuinely narrower data
-  source than EI's bundled, API-backed database. `autoAttack` needs the
-  live API and is omitted; the five proc/instant flags are emitted.
+- **Skill names** — resolved through a five-rung chain since 1.6.1/1.6.2
+  (log's own table → curated pseudo-ids → GW2 API → GW2EI overrides →
+  GW2EI symbol names → placeholder); 20 ids on a 60-log sample still
+  bottom out at `"Skill <id>"`, absent from every source. `autoAttack`
+  needs the live API and is omitted; the five proc/instant flags are
+  emitted.
 - **Skill icons in `ei-json`** — carried natively at
   `catalogs.skills[].icon`, but EI's `skillMap` shape has no field for
   them.

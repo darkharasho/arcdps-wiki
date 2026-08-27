@@ -1,6 +1,6 @@
 ---
 title: axilog parity & divergences vs EI
-description: The definitive list of where axilog deliberately does not reproduce Elite Insights — three verified EI bugs it declines to copy, the arcdps-methodology contribution family, the curated target roster, and the fields it omits rather than fakes.
+description: The definitive list of where axilog deliberately does not reproduce Elite Insights — three verified EI bugs it declines to copy, the arcdps-methodology contribution family, the three-population cleanse model, the curated target roster, and the fields it omits rather than fakes.
 source: community
 ---
 
@@ -124,6 +124,60 @@ leaves the semantic argument, and it favours keeping: that set answers
 "did the squad interact with this agent at all", and a defiance-bar hit is
 interaction.
 
+### Cleanses: three populations, not one
+
+The long-standing "arcdps says X, dps.report says Y" cleanse gap turned
+out to be several distinct disagreements, and v1.6.0/v1.7.0 resolved it
+by emitting **three separately counted populations** instead of blending
+them:
+
+1. **EI-parity** — `cleanses` (off another squad player) plus
+   `cleanses_self`. Bit-identical to GW2EI's `SupportStatistics.cs`,
+   calibrated exact.
+2. **`cleanses_minions`** (v1.6.0) — the bucket EI structurally cannot
+   count: its accumulator loops `foreach (Player p in log.PlayerList)`
+   (`SupportStatistics.cs:61`), so a condition cleansed off a ranger pet,
+   necro minion, mesmer clone or revenant spirit counts zero times. The
+   in-game meter folds minions into their master and does count them.
+   Measured **+3.38%** on a 34-account reference log, against independent
+   field reports of +3.3% and +4.1% — this one exclusion is essentially
+   the whole reported gap.
+3. **The `cleanses_arcdps` / `strips_arcdps` family** (v1.7.0) — an
+   independent count, *not* a correction to the other two. The
+   `arcdps_parity` analysis pass is a transcription of the in-game
+   meter's own counting code, shared by the arcdps author (2026-08-26).
+
+The arcdps methodology differs from EI's beyond population: only
+`CBTS_BUFFREMOVE_ALL` rows count; **single-stack stability removals are
+excluded** (stability consumed by CC is not a strip); **self-consumed
+blinds are excluded**; the burst of self-removals a player produces on
+going down is **subtracted back out** (walked as a bounded event chain,
+not a bare time window — see the
+[methodology page](/axilog/methodology/)); friend-or-foe comes from the
+row's own `iff` byte rather than a squad-membership set; and pets fold
+into their masters, split into `_by_minion` (the pet did the removing)
+and `_on_minion` (the removal happened on a pet) buckets.
+
+**There is no single "arcdps number."** The in-game window's
+"vs npcs" / "from npcs" toggles decide which buckets the meter displays,
+so axilog emits the three buckets (`cleanses_arcdps`,
+`cleanses_arcdps_on_minion`, `cleanses_arcdps_by_minion`, with a
+`strips_arcdps` mirror) and lets the consumer assemble the sum matching
+the reader's toggles. On the committed fixture the buckets are
+900 / 46 / 157 — toggle choice moves the "total" by 26%. Corroboration:
+the base bucket reads 900 against EI's 898 (0.2%); the `_on_minion`
+bucket is exactly what the independently derived `cleanses_minions`
+finds by a different route; and the strip residue against EI is exactly
+the single-stack-stability population.
+
+Consumers should **not** approximate arcdps parity as
+`cleanses + cleanses_self + cleanses_minions` — that sum reads a few
+percent high because it lacks the three methodology exclusions. The SDK
+docs said exactly that before v1.7.0 and were corrected to point at the
+`_arcdps` family. ([AxiBridge](/guides/ecosystem/#the-axi-suite) v3.2.0
+is the first consumer: its "arcdps" support scope now sums
+`condiCleanseArcdps + condiCleanseArcdpsOnMinion`.)
+
 ### CC over time, and the whole-log timeline
 
 CC applications and durations are tracked as real `CROWD_CONTROL`-result
@@ -188,9 +242,9 @@ than a silent approximation.
 
 | Surface | Shortfall |
 | --- | --- |
-| `skillMap` | Names come from the log's **own** skill table (falling back to `"Skill <id>"`), a genuinely narrower data source than EI's bundled, GW2-API-backed skill database. Names are spot-checked, not calibrated. `autoAttack` is omitted — it needs the live API and was refused rather than guessed. The five proc/instant/accuracy flags (`isInstantCast`, `isTraitProc`, `isGearProc`, `isUnconditionalProc`, `isNotAccurate`) **are** emitted: they fall out of the instant-cast finders' own availability predicates, not from API data. `icon` is absent from EI's `skillMap`/`buffMap` shape entirely, so it is a native-only field — see below. `canCrit` and a narrower `isSwap` are computed from the id alone and match EI on every overlapping id. |
-| `rotation[]` | Reproduces EI's **animated**-cast pipeline only. The instant-cast finders now run (565 of GW2EI's 649 transcribed), but their output is not yet merged into `rotation` — so the ~29% of a real log's cast entries they account for is computed and unmerged rather than undecoded. The 6 `UsingNoAnimatedCastChecker` finders are blocked on the same merge. |
-| `skillMap[].icon` | An **`ei-json`-only** gap, not a computation gap. The native container carries icons at `catalogs.skills[].icon` (372 of 456 catalogued skills on the fixture, boons and conditions included via the GW2EI buff-table fallback). EI's `skillMap`/`buffMap` shape has no icon field to put them in. |
+| `skillMap` | Names resolve through a five-rung chain (since 1.6.1/1.6.2): the log's own skill table → curated pseudo-id names → the GW2 API table (4,610 ids) → GW2EI's `OverridenSkillNames` (293 entries, pinned last-by-measurement) → symbol names generated from GW2EI's `SkillIDs.cs` (5,568 ids) → the `"Skill <id>"` placeholder. On a 60-log sample, 20 ids still bottom out at the placeholder — absent from every source. Names are measured against goldens (a 6,520-row name-leak guard), not calibrated cell-by-cell. `autoAttack` is omitted — it needs the live API and was refused rather than guessed. The five proc/instant/accuracy flags (`isInstantCast`, `isTraitProc`, `isGearProc`, `isUnconditionalProc`, `isNotAccurate`) **are** emitted: they fall out of the instant-cast finders' own availability predicates, not from API data. `icon` is absent from EI's `skillMap`/`buffMap` shape entirely, so it is a native-only field — see below. `canCrit` and a narrower `isSwap` are computed from the id alone and match EI on every overlapping id. |
+| `rotation[]` | Reproduces EI's **animated**-cast pipeline only. The instant-cast finders now run (571 of GW2EI's 649 transcribed), but their output is not yet merged into `rotation` — so the ~29% of a real log's cast entries they account for is computed and unmerged rather than undecoded. The 6 `UsingNoAnimatedCastChecker` finders are blocked on the same merge. |
+| `skillMap[].icon` | An **`ei-json`-only** gap, not a computation gap. The native container carries icons at `catalogs.skills[].icon` (426 of 434 catalogued skills on the fixture as of 1.7.0, boons and conditions included via the GW2EI buff-table fallback). EI's `skillMap`/`buffMap` shape has no icon field to put them in. |
 | `damageModifiers` | 69 of the reference export's 75 ids; the 6 uncovered each need an engine feature axilog lacks, listed with reasons. See [damage modifiers](/axilog/damage-modifiers/#coverage-and-accuracy). |
 | `targets[].totalDamageDist` | Its `connectedHits` reproduces EI's `HasHit` from the result byte rather than axilog's own `dmg > 0` convention, because the consumer divides by it. |
 | `players[].minions[]` | Two bounded label/roster residuals, both traced: arcdps names species 26153 `Clone` where EI's export reads `Rifle Clone`, and one player owns an englobed agent EI lists as its own `UNKNOWN` group (12 rows / 25,963 damage) that axilog classifies as a player. EI's other twenty minion arrays are read nowhere downstream and are not emitted. |

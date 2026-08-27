@@ -42,6 +42,27 @@ where the log itself reports a per-buff capacity, the log wins and the
 table is only a fallback. Several real capacities sit far above what a
 "typically 5" assumption would allow.
 
+Since the 1.x line the twelve boons are one of **three disjoint blocks**
+that together reassemble EI's single `buffUptimes` array:
+
+| Block | Covers | Gate |
+| --- | --- | --- |
+| `blocks.boons` | The twelve boons above | Always on (stack timelines behind `--timeseries`) |
+| `blocks.self_effects` (1.3.0) | What was *on* a squad player — the 14 catalogued conditions plus Stun (872) and Daze (833), each with `uptime_pct`, optional `avg_stacks`, and a fused stack timeline. Stun/Daze come from a new control catalog; EI classifies them as `Other`. | `--timeseries` |
+| `blocks.squad_buffs` (1.4.0) | Everything else a player held — sigils, relics, food, utilities, auras, signets, trait buffs — as `uptime_pct` plus optional `avg_stacks` | Always on |
+
+The three id sets are disjoint by construction, so a consumer can
+concatenate them without dedup. `squad_buffs` ports GW2EI's
+`BuffClassification.Hidden` drop and `ElementalistHelper.RemoveDualBuffs`,
+and is calibrated at 1,196 cells to EI's own 0.0005 pp
+`Math.Round(x, 3)` serialization floor. Since 1.4.0 the stacking mode for
+an uncatalogued buff falls back to the generated GW2EI table rather than
+only the damage-modifier catalog — that one change took Unblockable from
+a 0.293 relative error to the serialization floor, and it is why
+**stacking mode is per-buff data, not derivable from the skill id**: the
+native `catalogs.buffs` entry carries it, and consumers should read it
+from there rather than hardcoding an id→mode table.
+
 ## The two tick models
 
 `BuffStackType` (GW2EI's `ArcDPSEnums.BuffStackType`,

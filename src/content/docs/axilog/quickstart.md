@@ -4,13 +4,15 @@ description: Install the axilog CLI from a GitHub Release, tour parse's formats,
 source: community
 ---
 
-Everything on this page was run against [axilog](/axilog/) **0.3.2** and
+Everything on this page was run against [axilog](/axilog/) **1.7.0** and
 the project's committed, anonymized WvW fixture
 (`fixtures/wvw-small.anon.zevtc` — 49.3 s on Green Alpine Borderlands, 122
 tracked entities, of which 42 are friendly players and 38 are squad
 members). Those three counts are why the numbers below differ depending on
-what is being counted. The `:Anon<N>.<digits>` account names in the output
-are the fixture's own placeholders, not redactions.
+what is being counted. The `Anon<N>.<digits>` account names in the output
+are the fixture's own placeholders, not redactions. (arcdps writes account
+names with a leading colon on the wire; axilog has stripped it from every
+output since 0.3.7.)
 
 ## CLI
 
@@ -25,7 +27,7 @@ published per release: `x86_64-unknown-linux-gnu`,
 Verify the checksum before extracting:
 
 ```sh
-VER=0.3.2
+VER=1.7.0
 TARGET=x86_64-unknown-linux-gnu
 BASE=https://github.com/darkharasho/axilog/releases/download/v$VER
 
@@ -33,11 +35,11 @@ curl -LO $BASE/axilog-$VER-$TARGET.tar.gz
 curl -LO $BASE/axilog-$VER-$TARGET.tar.gz.sha256
 
 sha256sum -c axilog-$VER-$TARGET.tar.gz.sha256
-# axilog-0.3.2-x86_64-unknown-linux-gnu.tar.gz: OK
+# axilog-1.7.0-x86_64-unknown-linux-gnu.tar.gz: OK
 
 tar xzf axilog-$VER-$TARGET.tar.gz
 ./axilog --version
-# axilog 0.3.2
+# axilog 1.7.0
 ```
 
 Each archive contains a single `axilog` binary — put it anywhere on your
@@ -61,11 +63,11 @@ axilog parse fight.zevtc --format table
 
 ```text
 account                  profession       damage      DPS  downs  kills  deaths
-:Anon104.4848            Engineer         205612     4172      1      0       0
-:Anon171.7327            Engineer         192437     3905      2      1       0
-:Anon110.5070            Necromancer      169689     3443      4      0       0
-:Anon116.5292            Necromancer      162652     3300      1      0       0
-:Anon107.4959            Mesmer           154899     3143      0      0       0
+Anon104.4848             Engineer         205612     4172      1      0       0
+Anon171.7327             Engineer         192437     3905      2      1       0
+Anon110.5070             Necromancer      169689     3443      4      0       0
+Anon116.5292             Necromancer      162652     3300      1      0       0
+Anon107.4959             Mesmer           154899     3143      0      0       0
 ```
 
 Both `.zevtc` (zipped) and raw `.evtc` are accepted.
@@ -104,9 +106,9 @@ axilog parse fight.zevtc --format table --view support
 
 ```text
 account                  profession    cleanses  strips resurrects stunbreaks
-:Anon133.5921            Elementalist        93       0          0          1
-:Anon118.5366            Mesmer              76       1          0          1
-:Anon125.5625            Ranger              66       0          0          0
+Anon133.5921             Elementalist        93       0          0          1
+Anon118.5366             Mesmer              76       1          0          1
+Anon125.5625             Ranger              66       0          0          0
 ```
 
 | `--view` | Columns |
@@ -124,9 +126,9 @@ axilog parse fight.zevtc --format table --view boons
 
 ```text
 account                  profession   Might(avg)  Quick%   Alac%   Stab%   Prot%
-:Anon104.4848            Engineer          19.43    66.2     0.0    72.7    90.9
-:Anon105.4885            Ranger            10.17    31.3     0.0    79.5    67.6
-:Anon106.4922            Guardian          13.82    44.5     0.0    70.1    98.0
+Anon104.4848             Engineer          19.43    66.2     0.0    72.7    90.9
+Anon105.4885             Ranger            10.17    31.3     0.0    79.5    67.6
+Anon106.4922             Guardian          13.82    44.5     0.0    70.1    98.0
 ```
 
 `--view healing` renders `-` per row rather than misleading zeros when the
@@ -149,7 +151,7 @@ axilog parse fight.zevtc --all -o everything.json
 | Flag | Adds |
 | --- | --- |
 | `--skill-damage` | Per-skill outgoing and incoming splits under `blocks.damage`. |
-| `--timeseries` | Per-entity per-second channels in `blocks.series`, plus the buff stack timelines in `blocks.boons` and `blocks.conditions`. |
+| `--timeseries` | Per-entity per-second channels in `blocks.series` (including `healing_received_1s` / `barrier_received_1s` since 1.1.0), the buff stack timelines in `blocks.boons` and `blocks.conditions`, and the `blocks.self_effects` condition/control uptimes (since 1.3.0). |
 | `--rotation` | Per-entity cast lists and aftercast detail in `blocks.rotation`. |
 | `--replay` | Position tracks in `blocks.replay.tracks`. Also feeds the `html` report's replay tab. |
 | `--missiles` | Projectile fired/hit/denied counts, per entity and squad-wide. |
@@ -171,14 +173,18 @@ Measured on the committed fixture (release build, compact JSON):
 
 | Flag | Bytes | Wall |
 | --- | --- | --- |
-| *(none)* | 461,086 | 0.07 s |
-| `--missiles` | 466,565 | 0.07 s |
-| `--rotation` | 708,367 | 0.07 s |
-| `--modifiers` | 616,591 | 0.08 s |
-| `--replay` | 1,679,284 | 0.12 s |
-| `--skill-damage` | 3,338,819 | 0.08 s |
-| `--timeseries` | 3,563,403 | 0.09 s |
-| `--all` | 8,067,599 | 0.16 s |
+| *(none)* | 616,949 | 0.10 s |
+| `--missiles` | 622,428 | 0.10 s |
+| `--rotation` | 960,465 | 0.10 s |
+| `--modifiers` | 772,748 | 0.11 s |
+| `--replay` | 1,835,476 | 0.14 s |
+| `--skill-damage` | 3,498,967 | 0.10 s |
+| `--timeseries` | 4,026,051 | 0.12 s |
+| `--all` | 8,631,143 | 0.20 s |
+
+(The flagless baseline grew from 0.3.2's 461 kB: 1.7.0's default output
+carries the always-on `squad_buffs` block and a larger name-resolved
+skill catalog.)
 
 That fixture is a 49-second skirmish, and those ratios do not hold as logs
 grow. The per-skill and per-second blocks are combinatorial — entity ×
@@ -212,7 +218,8 @@ axilog anonymize fight.zevtc fight.anon.zevtc
 ```
 
 Every player agent's character and account name becomes a deterministic
-`Anon<N>` / `:Anon<N>.<4 digits>` placeholder, and guild GUIDs are zeroed
+`Anon<N>` / `:Anon<N>.<4 digits>` placeholder on the wire (parsers strip
+the arcdps leading colon on output), and guild GUIDs are zeroed
 (mirroring GW2EI's own `GuildEvent.Anonymize()`). Every other byte — the
 whole event stream, the skill table, NPC and gadget agents — is preserved
 exactly, so parsed metrics are identical before and after. Do this before
@@ -246,9 +253,9 @@ console.log(top[0].account, top[0].profession, top[1].total, top[1].dps)
 ```
 
 ```text
-{ generated_from: 'wvw-small.anon.zevtc', schema: '1.0', version: '0.3.2' }
+{ schema: '1.0', version: '1.7.0', generated_from: 'wvw-small.anon.zevtc' }
 38 squad of 122 | squad damage 2138414
-:Anon104.4848 Engineer 205612 4171.898143451354
+Anon104.4848 Engineer 205612 4171.898143451354
 ```
 
 There is no flat `players[]` in the native container — the roster is
@@ -312,10 +319,10 @@ print(top["account"], top["profession"], row["total"], round(row["dps"], 1))
 ```
 
 ```text
-{'generated_from': 'wvw-small.anon.zevtc', 'schema': '1.0', 'version': '0.3.2'}
+{'schema': '1.0', 'version': '1.7.0', 'generated_from': 'wvw-small.anon.zevtc'}
 Green Alpine Borderlands 49285
 38 squad of 122 entities
-:Anon104.4848 Engineer 205612 4171.9
+Anon104.4848 Engineer 205612 4171.9
 ```
 
 Names are not repeated per entity — they live once in `catalogs`, and the
@@ -327,7 +334,7 @@ print(report["catalogs"]["buffs"]["1187"]["name"], round(boons["1187"]["uptime_p
 ```
 
 ```text
-Quickness 6.0
+Quickness 66.2
 ```
 
 Opt-in gates are keyword arguments, in snake_case, all defaulting to
@@ -344,7 +351,7 @@ positive ids outgoing:
 ```python
 report = axilog.parse_file("./fight.zevtc", modifiers=True)
 
-top = next(e for e in report["entities"] if e["account"] == ":Anon104.4848")
+top = next(e for e in report["entities"] if e["account"] == "Anon104.4848")
 mods = report["blocks"]["damage_mods"]["by_entity"][str(top["id"])]["overall"]
 cat = report["catalogs"]["damage_mods"]
 
@@ -375,7 +382,7 @@ print(ei["players"][0]["account"], ei["players"][0]["dpsAll"][0]["damage"])
 
 ```text
 Detailed WvW - Green Alpine Borderlands 49285 42
-:Anon104.4848 205612
+Anon104.4848 205612
 ```
 
 The rest of the API is `parse_bytes(data, ...)` for already-read bytes and

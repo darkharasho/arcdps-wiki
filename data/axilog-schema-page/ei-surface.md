@@ -18,7 +18,7 @@ On the committed fixture, with no opt-in flags, the top level is:
   "eliteInsightsVersion": null,
   "fightName": "Detailed WvW - Green Alpine Borderlands",
   "players": [],
-  "recordedBy": ":Anon104.4848",
+  "recordedBy": "Anon104.4848",
   "skillMap": {},
   "success": true,
   "targets": [],
@@ -123,7 +123,9 @@ The native container carries skill art: `catalogs.skills[].icon` is a
 `render.guildwars2.com` URL, resolved from the GW2 API first and GW2EI's
 buff table second, so boons and conditions are covered too even though
 ArenaNet's `/v2/skills` endpoint has no record of them. On the committed
-fixture that is 372 of 456 catalogued skills.
+fixture that is 426 of 434 catalogued skills (as of 1.7.0, which also
+resolves display names through the GW2 API and strips the wire format's
+leading colon from account names everywhere).
 
 The EI-compat layer does **not** expose them — its `skillMap` and `buffMap`
 entries carry names and classifier flags but no icon field. That is a real,

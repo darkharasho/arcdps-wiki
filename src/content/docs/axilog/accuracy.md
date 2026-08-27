@@ -1,13 +1,16 @@
 ---
 title: axilog accuracy & calibration
-description: How axilog is held to Elite Insights' numbers at v0.3.2 — the golden fixtures, the exact-or-documented-exception bar, the current headline results across every calibrated surface, the head-to-head performance comparison, and the honest gaps.
+description: How axilog is held to Elite Insights' numbers at v1.7.0 — the golden fixtures, the exact-or-documented-exception bar, the current headline results across every calibrated surface, the head-to-head performance comparison, and the honest gaps.
 source: community
 ---
 
 Every number [axilog](/axilog/) prints is either **exactly** what Elite
 Insights prints for the same log, or a documented, ruled exception with a
 traced cause. This page is the evidence: how that bar is enforced, what
-the results are at **v0.3.2**, and where the gaps still are.
+the results are at **v1.7.0**, and where the gaps still are. (Individual
+rows note where a number was measured on an earlier release and has not
+been re-run; the golden suites themselves assert in CI on every commit,
+so every "exact" row below still holds at 1.7.0 by construction.)
 
 The places axilog deliberately differs are on their own page —
 [parity & divergences](/axilog/parity/).
@@ -85,6 +88,10 @@ state their bar.
 | Condi cleanses (squad / self) | Exact — 801 / 97, and per-player |
 | Boon strips (squad) | Exact — 437, and per-player |
 | Resurrect casts (squad) | Exact — 6, and per-player |
+| Minion cleanses (`condiCleanseMinions`, 1.6.0) | +3.38% over EI's total on a 34-account log, matching independent field reports of +3.3% / +4.1% for the arcdps-vs-EI gap — a divergence *measurement*, not a parity row (EI has no equivalent field) |
+| arcdps-parity cleanse buckets (1.7.0) | 900 / 46 / 157 on the fixture; base bucket 900 vs EI's 898 (0.2%), `_on_minion` exactly equal to the independently derived minion bucket, strip residue exactly the single-stack-stability population |
+| Healing-extension roster (`runs_extension`, 1.2.0) | Exact vs EI's `RunningExtension` on 8 real WvW logs |
+| `squad_buffs` uptimes (1.4.0) | 1,196 cells at EI's own 0.0005 pp serialization floor |
 | Incoming CC, incoming strips (`defenses[0]`) | **Exact on 44/44 post-era and 37/37 pre-era accounts** |
 | `activeTimes` | Exact — 0.0000% max error (gate: ≤ 0.5%) |
 | `guildID` | Exact on 44/44, decoded from `CBTS_GUILD`'s mixed-endian GUID packing — no GW2-API lookup involved |
@@ -262,7 +269,9 @@ is a correctness regression, not a speedup.
 ### Against the Elite Insights CLI
 
 Head-to-head against Elite Insights CLI v3.27.1.0 plus its bundled .NET
-8.0.25 runtime, measured 2026-08-16 on axilog v0.3.2, same machine, medians
+8.0.25 runtime, measured 2026-08-16 on axilog v0.3.2 (the README still
+cites these numbers at 1.7.0; the head-to-head has not been re-run
+since), same machine, medians
 of 3 runs after a
 warmup. "Matched" is axibridge's production EI configuration (detailed
 WvW, damage modifiers, combat replay, raw timeline arrays, phases) against
@@ -305,24 +314,29 @@ Where axilog does not compute something, `ei-json` omits the key rather
 than emitting a plausible zero. The current list:
 
 - **Instant casts are computed but not merged.** The instant-cast finders
-  now run — 565 of GW2EI's 649 `InstantCastFinder` definitions are
+  now run — 571 of GW2EI's 649 `InstantCastFinder` definitions are
   transcribed — but their output is not yet folded into `rotation`, which
   remains animated-cast only. So the calibrated rotation number is still
   the animated-cast count rather than a total, and the gap is a merge that
   has not happened rather than a pipeline that does not exist. The 6
   `UsingNoAnimatedCastChecker` finders are blocked on the same merge,
   because they need the cast window it would establish.
-- **Skill names.** `skillMap` names come from the log's own skill table, a
-  genuinely different data source from EI's bundled, API-backed database,
-  so names are spot-checked rather than calibrated. `autoAttack` is still
+- **Skill names.** Since 1.6.1/1.6.2 `skillMap` names resolve through a
+  five-rung chain — the log's own table, curated pseudo-ids, the GW2 API
+  (4,610 ids), GW2EI's override table (293 entries, demoted last by
+  measurement), and symbol names generated from GW2EI's `SkillIDs.cs`
+  (5,568 ids) — guarded by a 6,520-row name-leak golden rather than
+  calibrated cell-by-cell. On a 60-log sample, 20 ids still bottom out at
+  the `"Skill <id>"` placeholder, absent from every source. `autoAttack` is still
   omitted — it needs the live API and was refused rather than guessed. The
   five proc/instant/accuracy flags are *not* in that category any more:
   `isInstantCast`, `isTraitProc`, `isGearProc`, `isUnconditionalProc` and
   `isNotAccurate` are emitted, derived from the finders' own availability
   predicates rather than from API data.
 - **Skill icons, in `ei-json` only.** The native container carries them at
-  `catalogs.skills[].icon` — 372 of 456 catalogued skills on the fixture,
-  boons and conditions included via the GW2EI buff-table fallback. EI's
+  `catalogs.skills[].icon` — 426 of 434 catalogued skills on the fixture
+  at 1.7.0, boons and conditions included via the GW2EI buff-table
+  fallback. EI's
   `skillMap`/`buffMap` shape has no icon field, so the EI-compat layer
   cannot expose them. A consumer that needs art should read the native
   catalog.

@@ -295,7 +295,11 @@ The 34 skipped definitions are dominated by one class that is **not** a
 gap at all: the `BuffOnFoe` family. GW2EI's own
 `BuffOnFoeDamageModifier.Keep` returns `false` for every WvW and sPvP log
 before consulting anything else (`:83-91`), so those modifiers are
-definitionally inert in axilog's only parse mode. Transcribing them would
+definitionally inert in a WvW parse. ("Only parse mode" stopped being
+true in v1.5.0: `ModeContext::from_encounter` now gives raids, strikes,
+fractals and convergences GW2EI's `Instanced` mode, since several
+modifiers are WvW/sPvP-only or instanced-only — the WvW analysis on this
+page is unchanged.) Transcribing them would
 add dead entries the evaluator drops anyway. The rest are checker
 predicates axilog cannot express — flanking-or-breakbar state, a
 resurrect-cast intersection, a target-range probe, an HP-fraction probe,

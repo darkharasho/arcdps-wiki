@@ -15,7 +15,14 @@ single-file interactive HTML report. It reimplements
 metrics it covers are calibrated against a real dps.report EI export in
 CI on every run.
 
-Current release: **v0.3.2**.
+Current release: **v1.7.0**. Since **v1.0.0** (2026-08-18) the project's
+own words are "1.0 is a promise, not a feature": the native format 1.0 is
+frozen (fields are added, never removed or re-meaninged), the Node and
+Python surfaces are under semver, and the CLI flags and formats are
+stable. It is also now the shared parsing engine for the rest of the
+axi suite — [AxiPulse](/guides/ecosystem/#the-axi-suite), its in-game
+plugin, and AxiBridge all dropped Elite Insights for in-process axilog
+parsing in August 2026.
 
 ## Why it exists
 
@@ -40,12 +47,13 @@ Current release: **v0.3.2**.
 
 ## Architecture
 
-One Cargo workspace, seven crates:
+One Cargo workspace, eight crates:
 
 | Crate | Role |
 | --- | --- |
 | `axilog-core` | Decode, resolution and all analysis. The only place log semantics live. |
 | `axilog-schema` | The native report format **1.0** container and its serialization. |
+| `axilog-api` | Shared `parse_report_v1` facade used by the CLI's `--format json` and the SDKs (and, as a git-tagged crate, by other axi-suite tools). |
 | `axilog-ei` | Adapter that maps that container into Elite Insights' JSON shape, with a streaming writer for the CLI path. |
 | `axilog-cli` | The `axilog` binary — `parse`, `anonymize`, output formats and views. |
 | `axilog-node` | napi-rs native addon (`@axiapps/axilog`). |
@@ -68,9 +76,10 @@ implementation to drift:
    fallback.
 3. **Analyze** — damage, downs/kills/deaths, the contribution family, CC
    and stun breaks, boon simulation with generation and waste attribution,
-   support stats, healing-extension data, per-skill and per-second series,
-   hit quality, defenses, rotation, damage modifiers, and two combat
-   replays.
+   support stats (in both EI-parity and arcdps-parity counting), self
+   effects and squad-wide buff uptimes, healing-extension data, per-skill
+   and per-second series, hit quality, defenses, rotation, damage
+   modifiers, and two combat replays.
 4. **Emit** — native JSON, `ei-json`, CSV, table, or HTML.
 
 Expensive analyses are opt-in flags, because each one materially inflates
@@ -100,6 +109,14 @@ Insights. Each is explained in full on the
 - **Full timeline support.** A per-second squad damage / CC-applied /
   downs series, plus per-player cumulative damage and damage-taken series,
   exist natively. EI's JSON has no comparable whole-log series for WvW.
+- **arcdps-methodology cleanses and strips.** Since v1.7.0 a separate
+  `arcdps_parity` pass counts condition cleanses and boon strips the way
+  the in-game arcdps meter does — a transcription of counting code the
+  arcdps author shared directly — alongside the EI-parity counts. The two
+  methodologies genuinely disagree (single-stack stability removals,
+  self-consumed blinds, the removal burst on going down, pets and
+  non-squad friendlies), so axilog emits both rather than blending them.
+  See [parity & divergences](/axilog/parity/#cleanses-three-populations-not-one).
 - **Three EI bugs it declines to copy.** `lifeLeechDamageTakenCount` (a
   double increment that leaves the count field permanently zero),
   `boonStripsTime` in both directions (a `Math.Max` where `Min` was
@@ -110,8 +127,15 @@ Insights. Each is explained in full on the
 ## Scope
 
 **WvW-first.** Every calibrated metric was validated against real WvW
-logs. PvE encounter logic (boss health phases, mechanics, phase splits) is
-not implemented — the native report exposes a single whole-fight phase.
+logs. Since v1.5.0 PvE logs are *identified* — `encounter.kind` carries
+GW2EI's log category (`raid_wing`, `fractal`, `golem`, `story`, …),
+`encounter_name`/`trigger_id` name the fight from a transcription of
+GW2EI's 90 detection cases, and 13 anonymized PvE fixtures are committed
+— but PvE encounter *logic* (boss health phases, mechanics, phase
+splits, challenge-mote detection, per-encounter success rules) is still
+not implemented: the native report exposes a single whole-fight phase,
+and `encounter.success` uses only the generic died-or-not rule, so
+`true` is reliable and `false` is not.
 
 **Both log eras, both calibrated.** arcdps changed how boon apply/remove,
 CC results, and cast-animation events are written on the wire around build

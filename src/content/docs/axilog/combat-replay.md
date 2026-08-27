@@ -248,20 +248,51 @@ emitted and no sample runs past the bound. See
 
 ```json
 "replay": {
-  "poll_ms": 300,
-  "bounds": { "min_x": "…", "min_y": "…", "max_x": "…", "max_y": "…" },
-  "tracks": [
-    { "name": "…", "team": "green", "commander": false, "is_squad": true,
-      "samples": [["t_ms", "x", "y"]],
-      "down_intervals": [["start_ms", "end_ms"]], "dead_intervals": [] }
-  ]
+  "tracks": {
+    "poll_ms": 300,
+    "bounds": { "min_x": "…", "min_y": "…", "max_x": "…", "max_y": "…" },
+    "arena": {
+      "image_width": 697, "image_height": 1000, "image_url": "…",
+      "world_min_x": -30720.0, "world_min_y": -43008.0,
+      "world_max_x": 30720.0, "world_max_y": 43008.0
+    },
+    "by_entity": {
+      "<entity id>": {
+        "samples": [["t_ms", "x", "y"]],
+        "down_intervals": [["start_ms", "end_ms"]],
+        "dead_intervals": [], "dc_intervals": []
+      }
+    }
+  },
+  "by_entity": {
+    "<entity id>": { "start_ms": "…", "end_ms": "…", "active_ms": "…",
+                     "dist_to_com": "…", "stack_dist": "…",
+                     "down": "…", "dead": "…", "dc": "…" }
+  },
+  "gliding": [ { "entity_id": 2, "start_ms": 25065, "end_ms": 27970 } ]
 }
 ```
 
 `samples` are `[t_ms, x, y]` triples in raw world units rounded to one
 decimal; `bounds` spans every track so a consumer can size a viewBox in a
-single pass. Enemy tracks are per-enemy-player *representative*, not per
-agent — see the [instid regroup](/axilog/parity/#the-enemy-roster).
+single pass; names, teams and commander status live on `entities[]`,
+joined by id. **`arena`** (since 0.3.5) is the map geometry — the arena
+image's native size and URL plus the world rect it depicts — so
+world→pixel is a four-line consumer formula at any canvas size; nothing
+is pre-rounded or pre-rescaled (EI's 750 px squeeze and 3-decimal
+`inchToPixel` are renderer artifacts, derivable *from* `arena`).
+`dist_to_com` and `stack_dist` are computed engine-side. Enemy tracks are
+per-enemy-player *representative*, not per agent — see the
+[instid regroup](/axilog/parity/#the-enemy-roster).
+
+Two consumer facts worth spelling out (both learned the hard way by the
+suite's own front ends): **tracks are ragged, not a shared grid** — each
+track starts at that entity's own first-aware time rounded onto the
+polling grid, so on a real log 93 tracks had 45 distinct lengths and ten
+distinct start ticks; convert a *time* to each track's own index rather
+than indexing two tracks in lockstep. And the inch→pixel scale derived
+from `arena` is measurably anisotropic (~2.4% between axes), so scale x
+and y independently.
 
 The HTML report's Replay tab draws this block with an SVG stage,
 play/pause, a scrub slider and a 1×/4×/8× speed toggle. There is no map

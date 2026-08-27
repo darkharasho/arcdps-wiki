@@ -1,6 +1,6 @@
 <!--
   repo: darkharasho/axilog
-  ref: a000875d32208710403feb9b74b9ffc679368810
+  ref: d010da6846f77448fc501e4921047b4eaa448a69
   path: docs/NATIVE-FORMAT.md
   describes: 1.0
 
@@ -93,7 +93,8 @@ inside `blocks` is empty or absent.
       ]
     }
   ],
-  "started_at_unix": 1768702180
+  "started_at_unix": 1768702180,
+  "log_start_ms": 33847418
 }
 ```
 
@@ -131,6 +132,19 @@ Omitted (not `0`) when the log carries no such event, so absence stays
 distinguishable from epoch zero. This replaces inferring the start time from
 the `.zevtc` file's mtime, which breaks for any copied or restored file.
 
+`log_start_ms` is the log's **`t0`**: the arcdps *session-time* millisecond
+stamp of the log's first event. Every other time in this document is already
+measured from it — with exactly two exceptions, both raw event times passed
+through deliberately: `markers[].time_ms` and
+`entities[].commander.segments`. Note the example above: the marker's
+`time_ms` of `33847418` is not "9.4 hours into a 49-second fight", it is the
+same instant as `t0`. Session time has no fixed origin, so those two fields
+are uninterpretable on their own; subtract `log_start_ms` from either to get
+an encounter-relative value comparable against `duration_ms`. The result can
+be **negative** — a commander tag held before the log's first event is
+ordinary — which is why the rebase is left to you rather than done here and
+clamped. Always present; `0` for a log with no events.
+
 ## `entities[]` and the `role` field
 
 Real rows from the fixture, trimmed to four representative roles:
@@ -161,7 +175,8 @@ Real rows from the fixture, trimmed to four representative roles:
 `commander.segments` holds every terminated `[tag-on, tag-off)` window this
 player's commander tag was ever assigned, half-open, in the log's own
 millisecond time base (same base as `markers[].time_ms` above — arcdps
-session time, not encounter-relative). These are LITERAL per-instance
+session time, not encounter-relative — subtract `encounter.log_start_ms` to
+rebase). These are LITERAL per-instance
 segments, not a coalesced whole-fight span: entity `7`'s real fixture data
 above shows two, including a zero-width `[33847418, 33847418]` pair from an
 immediate same-timestamp reassignment. There is no minimum-coverage
@@ -444,6 +459,23 @@ seconds). Note the name collision GW2EI bequeathed: `aftercast.wasted_count`
 is a *cast-interrupt* count, an unrelated quantity to the boon-generation
 `*_wasted` fields under `boons`.
 
+**`skill_id` can be a pseudo id.** The cast list holds all three families
+Elite Insights merges — real animated casts, synthesized instant casts, and
+weapon swaps — and EI numbers its synthetic skills NEGATIVELY (`-2` is a
+weapon swap; the instant-cast catalog uses roughly three dozen more). Skill
+ids are `u32` everywhere in this format, so those arrive as their two's
+complement bit pattern: **`4294967294` is `-2`**, and in general
+`id_signed = id as i32`. The ei-json adapter casts back, so an `ei-json`
+export writes `-2` and keys `skillMap` as `"s-2"`, exactly as EI does.
+`catalogs.skills` names them (`"Weapon Swap"`), so a consumer that resolves
+ids through the catalog needs no special handling; one that formats the
+number itself should apply the cast.
+
+An instant cast or weapon swap always has `duration_ms == 0`,
+`time_gained_ms == 0` and `quickness == 0.0` — which is also how to tell the
+families apart after the fact: any cast with `duration_ms > 1` is a real
+animated cast, and any other is not.
+
 ### `coverage` — what a block's status means, and what to do about it
 
 Real example (default flags — no `--replay`/`--rotation`/`--modifiers`):
@@ -454,7 +486,8 @@ Real example (default flags — no `--replay`/`--rotation`/`--modifiers`):
   "contribution": "present", "damage": "present", "damage_mods": "not_computed",
   "defenses": "present", "healing": "present", "hit_stats": "present",
   "minions": "not_computed", "missiles": "not_computed", "replay": "present",
-  "rotation": "not_computed", "series": "present", "support": "present"
+  "rotation": "not_computed", "self_effects": "not_computed", "series": "present",
+  "squad_buffs": "present", "support": "present"
 }
 ```
 
@@ -589,10 +622,11 @@ Both decoders were executed against `v1.json` (default flags) and
 real RLE row) as part of writing this document; both round-tripped `len`
 correctly and matched the raw/RLE encoding the binary actually chose.
 
-## Buff stack timelines — `boons`' second gate, and `conditions`
+## Buff stack timelines — `boons`' second gate, `conditions`, and `self_effects`
 
-Two blocks carry per-buff **stack timelines**: when a buff was up, and at
-what stack count. Both ride `--timeseries` (`timeseries: true` in the SDKs).
+Three blocks carry per-buff **stack timelines**: when a buff was up, and at
+what stack count. All three ride `--timeseries` (`timeseries: true` in the
+SDKs).
 
 `blocks.boons` rows gain two fields under that flag — `states`, the fused
 timeline, and `per_source`, the same split by applier. This makes `boons`
@@ -606,6 +640,85 @@ present. Check for the fields.
 `per_source` and no fused `states`: summing appliers would not reconstruct
 one, because two players holding the same duration condition overlap rather
 than stack.
+
+`blocks.self_effects` is the squad-side counterpart: the same 14 conditions
+plus **Stun (`872`) and Daze (`833`)**, held BY a squad player rather than
+put onto an enemy. It is wholly gated too, and unlike `boons` it carries
+both halves — `uptime_pct`, an optional `avg_stacks`, and an unconditional
+`states` — so `coverage.self_effects` settles the whole question. It has no
+`per_source`.
+
+The two control effects are here and not in `conditions` because Elite
+Insights classifies them `Other`, not `Condition`; they are in this block
+because a consumer asking "what crowd control landed on me, and when" needs
+a timeline, and `blocks.cc` answers a different question — it counts
+crowd-control *events*, with no notion of stacks over time. The
+instantaneous control effects (Knockdown, Launch, Pull, Knockback, Float,
+Sink) are deliberately absent from `self_effects`: they produce no
+apply/remove pair, so no timeline exists to carry. `blocks.cc` counts those,
+which is the right shape for them.
+
+```json
+{
+  "self_effects": {
+    "by_entity": {
+      "22": {
+        "736": { "uptime_pct": 41.9, "avg_stacks": 3.7, "states": [[0, 0], [1204, 2], "..."] },
+        "872": { "uptime_pct": 0.232, "states": [[0, 0], [65670, 1], [66479, 0]] }
+      }
+    }
+  }
+}
+```
+
+`avg_stacks` is present exactly for the intensity-stacking effects (the six
+`BuffStackType.Stacking` conditions, `CommonBuffs.cs:36-40` + `:49`) and
+omitted for the rest, the same rule `boons` rows follow — an absent `avg_stacks` means "duration-stacking", never zero.
+
+## `squad_buffs` — the rest of what a player held
+
+Elite Insights keeps boons, conditions and everything else a player held in
+one `buffUptimes` array. This format splits that population by family, and
+`blocks.squad_buffs` is the third piece: every buff that is neither one of
+the 12 boons nor a condition/control effect — **sigils, relics, food,
+utilities, auras, signets, trait buffs**. A consumer rebuilding EI's single
+array concatenates `boons` and this block; the three id sets are disjoint by
+construction, so no id appears twice.
+
+Unlike `conditions` and `self_effects` this block is **always-on**. It emits
+uptime only — no `states` — which is the cost `boons`' own always-on uptime
+half already carries, so no flag gates it and `coverage.squad_buffs` is
+`present` on a default parse. Nothing plots a sigil's stack count over time;
+a timeline per player per buff would multiply the block's payload by an
+order of magnitude for a graph no consumer draws. Adding `states` later is
+additive.
+
+```json
+{
+  "squad_buffs": {
+    "by_entity": {
+      "0": {
+        "9286": { "uptime_pct": 99.9655, "avg_stacks": 24.9913 },
+        "10332": { "uptime_pct": 6.087 }
+      }
+    }
+  }
+}
+```
+
+`avg_stacks` follows the same rule as everywhere else in this format:
+present exactly for intensity-stacking buffs, omitted — never zero — for
+duration ones.
+
+An id is admitted only when some catalog states its stack type; a buff
+whose stack type is unknown cannot be simulated without guessing between
+the duration and intensity machines, which produce different numbers, and
+Elite Insights likewise tracks only the buffs its own container defines.
+One deliberate deletion mirrors EI: a non-Weaver elementalist's log carries
+the four Weaver dual-attunement ids alongside the plain ones, and EI drops
+them for such a player (`ElementalistHelper.RemoveDualBuffs`), so this
+block does too — otherwise every Tempest would carry a duplicate of its own
+attunement row at a plausible uptime.
 
 Real excerpt (`--timeseries`), showing only the fields this section adds —
 entity `22`'s Might (`740`), and a condition on enemy entity `42`:
@@ -672,9 +785,61 @@ aware bounds — is **always present**. Computing it is a min/max scan plus a
 status-event walk with no position decode, so every parse pays for it
 whether or not you asked for a replay.
 
-`tracks` — the downsampled position samples, and the `poll_ms`/`bounds`
-metadata that only describes them — rides `--replay`, because that is the
-expensive half.
+`tracks` — the downsampled position samples, and the `poll_ms`/`bounds`/
+`arena` metadata that only describes them — rides `--replay`, because that is
+the expensive half.
+
+### Plotting positions — `tracks.arena`
+
+Samples are raw **world (game-inch) coordinates**. That is the honest thing
+to carry: it is what arcdps records, and it is independent of anybody's
+canvas. It is also unplottable on its own — turning a world coordinate into
+a map pixel needs the per-map world rect, which is static GW2 data.
+
+Rather than make every consumer re-transcribe that table (axilog already
+holds it in `axilog_core::wvw::maps`, and a second copy one repository out
+is a second copy free to drift), the rect travels with the samples:
+
+```json
+"arena": {
+  "image_width": 697,
+  "image_height": 1000,
+  "image_url": "https://i.imgur.com/nVu2ivF.png",
+  "world_min_x": -30720.0,
+  "world_min_y": -43008.0,
+  "world_max_x": 30720.0,
+  "world_max_y": 43008.0
+}
+```
+
+World y grows northward and image y grows downward, so the y axis flips:
+
+```js
+const px = (x - a.world_min_x) / (a.world_max_x - a.world_min_x) * a.image_width
+const py = (1 - (y - a.world_min_y) / (a.world_max_y - a.world_min_y)) * a.image_height
+```
+
+Scale both by `canvas / image_*` to render at any size. Doing exactly that
+reproduces GW2EI's own combat-replay pixel for every map in the table, which
+is asserted rather than asserted-in-prose (`arena_tests::
+projection_reproduces_gw2eis_transform_on_every_map`).
+
+Nothing in `arena` is pre-rounded or pre-rescaled. GW2EI's exported
+`combatReplayMetaData` carries `sizes` already squeezed to a 750px maximum
+dimension and an `inchToPixel` rounded to three decimals — both artifacts of
+its renderer. Those are derivable from these numbers; these are not
+recoverable from those.
+
+`arena` is **omitted for a map id with no hand-authored arena image** (GW2EI
+has none for Obsidian Sanctum or Armistice Bastion, and none for any non-WvW
+id). A consumer then has only `bounds`, which is the union of the *observed*
+positions rather than a fixed frame — so two logs on the same map do not
+share a coordinate space, and `bounds` must not be used as if they did.
+
+`encounter.map_id` carries the raw `CBTS_MAPID` value separately, for
+consumers joining against their own per-map assets (tile sets, objective
+catalogs, landmark tables). It is present with or without `--replay`; match
+on it rather than on the `encounter.map` display string, which is prose.
 
 ```json
 {
@@ -826,12 +991,16 @@ Enforced by test (`crates/axilog-schema/tests/v1_shape.rs`,
   A consumer should treat "key absent" and "key null" as the same signal,
   but should not expect to see the latter.
 
-**The rules above are not yet in force.** 1.0 is explicitly still malleable:
-until it is declared frozen here, a shape that turns out wrong gets fixed
-rather than carried, and breaking changes land without a major bump. The
-licence is narrow — it exists because 1.0 has no external consumer reading
-it yet (the ei-json adapter is its only reader, and it is in-tree), and it
-ends the moment one does.
+**The rules above are in force as of v0.3.5.** They were suspended while 1.0
+had no external consumer — the ei-json adapter was its only reader, and it
+is in-tree, so a shape that turned out wrong got fixed rather than carried.
+That licence was explicitly written to end the moment an outside consumer
+appeared. It has: **axibridge** reads `axilog`, `encounter`, `entities` and
+`coverage` off the native document in production as of its unit-2 cutover,
+with more blocks landing per unit. 1.0 is therefore **frozen**: from here a
+rename, a removal, a retype or a meaning change needs a major bump, and the
+key-set golden (`crates/axilog-schema/tests/v1-keyset.golden.txt`) is the
+gate that catches one.
 
 Breaking changes made under it are recorded here rather than passed over,
 because the key-set golden diff shows them as bare removals to anyone
